@@ -1,27 +1,31 @@
 using UnityEngine;
 using PrismPulse.Core.Board;
-using PrismPulse.Core.Colors;
+using PrismPulse.Core.Puzzle;
+using PrismPulse.Gameplay.Levels;
+using PrismPulse.Gameplay.UI;
 
 namespace PrismPulse.Gameplay
 {
     /// <summary>
     /// Top-level game controller.
-    /// Connects core logic (BoardState, BeamTracer) to the visual layer (BoardView, BeamRenderer).
+    /// Manages level loading, core logic, visual updates, and UI coordination.
     /// </summary>
     public class GameManager : MonoBehaviour
     {
         [Header("References")]
         [SerializeField] private BoardView.BoardView _boardView;
         [SerializeField] private BeamRenderer.BeamRenderer _beamRenderer;
-
-        [Header("Events")]
-        public System.Action OnPuzzleSolved;
-        public System.Action<int> OnMovePerformed;
+        [SerializeField] private GameHUD _hud;
+        [SerializeField] private WinScreen _winScreen;
 
         private BoardState _boardState;
         private BeamTracer _beamTracer;
         private BeamResult _beamResult;
         private int _moveCount;
+        private bool _puzzleSolved;
+
+        private LevelDefinition[] _levels;
+        private int _currentLevelIndex;
 
         private void Awake()
         {
@@ -31,35 +35,78 @@ namespace PrismPulse.Gameplay
 
         private void Start()
         {
-            LoadTestLevel();
+            _levels = BuiltInLevels.All;
+            _currentLevelIndex = 0;
+
+            if (_hud != null) _hud.Initialize();
+
+            if (_winScreen != null)
+            {
+                _winScreen.Initialize();
+                _winScreen.OnNextLevel = NextLevel;
+                _winScreen.OnRestart = RestartLevel;
+            }
+
+            LoadLevel(_currentLevelIndex);
         }
 
-        /// <summary>
-        /// Initialize the game with a board state.
-        /// Called by level loader or daily puzzle service.
-        /// </summary>
-        public void StartPuzzle(BoardState boardState)
+        public void LoadLevel(int index)
         {
-            _boardState = boardState;
+            if (index < 0 || index >= _levels.Length) return;
+
+            _currentLevelIndex = index;
+            var level = _levels[index];
+
+            _boardState = level.ToBoardState();
             _moveCount = 0;
+            _puzzleSolved = false;
 
             _boardView.Initialize(_boardState);
             _boardView.OnTileRotated = HandleTileRotated;
 
+            if (_hud != null)
+                _hud.SetLevelInfo($"{level.Id}. {level.Name}", level.ParMoves, level.ParTimeSeconds);
+
+            if (_winScreen != null)
+                _winScreen.Hide();
+
             TraceAndRender();
+        }
+
+        public void NextLevel()
+        {
+            if (_currentLevelIndex + 1 < _levels.Length)
+                LoadLevel(_currentLevelIndex + 1);
+        }
+
+        public void RestartLevel()
+        {
+            LoadLevel(_currentLevelIndex);
         }
 
         private void HandleTileRotated(GridPosition pos)
         {
+            if (_puzzleSolved) return;
+
             _moveCount++;
-            OnMovePerformed?.Invoke(_moveCount);
+            if (_hud != null) _hud.OnMove(_moveCount);
 
             TraceAndRender();
 
             if (_beamResult.AllTargetsSatisfied)
             {
-                Debug.Log($"Puzzle solved in {_moveCount} moves!");
-                OnPuzzleSolved?.Invoke();
+                _puzzleSolved = true;
+                if (_hud != null) _hud.Stop();
+
+                bool hasNext = _currentLevelIndex + 1 < _levels.Length;
+                int stars = _hud != null ? _hud.GetStarRating() : 1;
+                float time = _hud != null ? _hud.ElapsedTime : 0f;
+
+                Debug.Log($"Puzzle '{_levels[_currentLevelIndex].Name}' solved! " +
+                          $"{_moveCount} moves, {time:F1}s, {stars} stars");
+
+                if (_winScreen != null)
+                    _winScreen.Show(stars, _moveCount, time, hasNext);
             }
         }
 
@@ -68,62 +115,6 @@ namespace PrismPulse.Gameplay
             _beamTracer.Trace(_boardState, _beamResult);
             _beamRenderer.RenderBeams(_beamResult);
             _boardView.UpdateBeamLitState(_beamResult);
-        }
-
-        /// <summary>
-        /// Test level — two independent paths, no conflicts.
-        ///
-        ///   Col:  0           1           2           3           4
-        /// Row 0:  .           .        Src(G,↓)       .           .
-        /// Row 1: Src(R,→)   Str(v)*    Str(v)*      Cross       Tgt(R)
-        /// Row 2:  .           .        Tgt(G)         .           .
-        ///
-        /// * = rotatable (starts vertical, needs 1 click to become horizontal)
-        ///
-        /// Solution (2 clicks):
-        ///  1. Click Str(1,1) → vertical→horizontal → Red flows Right through to Cross→Tgt(R) ✓
-        ///  2. Click Str(2,1) → vertical→horizontal → Red also flows through
-        ///     BUT Green also needs (2,1) vertical to reach Tgt(G)...
-        ///
-        /// Revised: use Cross at (2,1) so Green passes down AND Red passes right.
-        ///
-        ///   Col:  0           1           2           3           4
-        /// Row 0:  .           .        Src(G,↓)       .           .
-        /// Row 1: Src(R,→)   Str(v)*    Cross(L)    Str(v)*     Tgt(R)
-        /// Row 2:  .           .        Tgt(G)         .           .
-        ///
-        /// Solution (2 clicks):
-        ///  1. Click Str(1,1) → horizontal → Red passes to Cross
-        ///  2. Click Str(3,1) → horizontal → Red passes Cross→Str→Tgt(R) ✓
-        ///  Green auto-flows: Src(G)↓ → Cross ↓ → Tgt(G) ✓
-        /// </summary>
-        private void LoadTestLevel()
-        {
-            var board = new BoardState(5, 3);
-
-            // --- Sources (locked) ---
-            board.SetTile(new GridPosition(0, 1),
-                TileState.CreateSource(LightColor.Red, Direction.Right));
-            board.SetTile(new GridPosition(2, 0),
-                TileState.CreateSource(LightColor.Green, Direction.Down));
-
-            // --- Cross at center (locked) — lets Red through horizontally, Green through vertically ---
-            board.SetTile(new GridPosition(2, 1),
-                new TileState { Type = TileType.Cross, Locked = true });
-
-            // --- Rotatable Straights — start VERTICAL (blocking Red), player rotates to HORIZONTAL ---
-            board.SetTile(new GridPosition(1, 1),
-                new TileState { Type = TileType.Straight, Rotation = 0 }); // click once → rot=1 (horizontal)
-            board.SetTile(new GridPosition(3, 1),
-                new TileState { Type = TileType.Straight, Rotation = 0 }); // click once → rot=1 (horizontal)
-
-            // --- Targets (locked) ---
-            board.SetTile(new GridPosition(4, 1),
-                TileState.CreateTarget(LightColor.Red));
-            board.SetTile(new GridPosition(2, 2),
-                TileState.CreateTarget(LightColor.Green));
-
-            StartPuzzle(board);
         }
     }
 }

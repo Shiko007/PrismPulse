@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
@@ -32,11 +34,29 @@ namespace PrismPulse.Gameplay
             SetSerializedField(beamRenderer, "_beamMaterial", beamMaterial);
             SetSerializedField(beamRenderer, "_boardView", boardView);
 
+            // HUD
+            var hudGO = new GameObject("GameHUD");
+            var hud = hudGO.AddComponent<UI.GameHUD>();
+
+            // Win Screen
+            var winGO = new GameObject("WinScreen");
+            var winScreen = winGO.AddComponent<UI.WinScreen>();
+
             // Game Manager
             var managerGO = new GameObject("GameManager");
             var gameManager = managerGO.AddComponent<GameManager>();
             SetSerializedField(gameManager, "_boardView", boardView);
             SetSerializedField(gameManager, "_beamRenderer", beamRenderer);
+            SetSerializedField(gameManager, "_hud", hud);
+            SetSerializedField(gameManager, "_winScreen", winScreen);
+
+            // EventSystem — required for UI button clicks
+            if (FindAnyObjectByType<EventSystem>() == null)
+            {
+                var esGO = new GameObject("EventSystem");
+                esGO.AddComponent<EventSystem>();
+                esGO.AddComponent<InputSystemUIInputModule>();
+            }
 
             // Post-processing volume for bloom
             SetupBloom();

@@ -1,0 +1,160 @@
+using UnityEngine;
+using TMPro;
+
+namespace PrismPulse.Gameplay.UI
+{
+    /// <summary>
+    /// In-game HUD showing level name, move counter, timer, and par info.
+    /// Built programmatically for bootstrap — convert to prefab later.
+    /// </summary>
+    public class GameHUD : MonoBehaviour
+    {
+        private TextMeshProUGUI _levelNameText;
+        private TextMeshProUGUI _movesText;
+        private TextMeshProUGUI _timerText;
+        private TextMeshProUGUI _parText;
+        private Canvas _canvas;
+
+        private float _elapsedTime;
+        private int _moveCount;
+        private bool _running;
+        private int _parMoves;
+        private float _parTime;
+
+        public void Initialize()
+        {
+            BuildUI();
+        }
+
+        public void SetLevelInfo(string levelName, int parMoves, float parTime)
+        {
+            _parMoves = parMoves;
+            _parTime = parTime;
+            _levelNameText.text = levelName;
+            _parText.text = $"Par: {parMoves} moves / {parTime:0}s";
+            _moveCount = 0;
+            _elapsedTime = 0f;
+            _running = true;
+            UpdateDisplay();
+        }
+
+        public void OnMove(int totalMoves)
+        {
+            _moveCount = totalMoves;
+            UpdateDisplay();
+        }
+
+        public void Stop()
+        {
+            _running = false;
+        }
+
+        public float ElapsedTime => _elapsedTime;
+        public int MoveCount => _moveCount;
+
+        /// <summary>
+        /// Returns 1-3 stars based on performance vs par.
+        /// </summary>
+        public int GetStarRating()
+        {
+            if (_moveCount <= _parMoves && _elapsedTime <= _parTime) return 3;
+            if (_moveCount <= _parMoves * 1.5f) return 2;
+            return 1;
+        }
+
+        private void Update()
+        {
+            if (!_running) return;
+            _elapsedTime += Time.deltaTime;
+            UpdateDisplay();
+        }
+
+        private void UpdateDisplay()
+        {
+            _movesText.text = $"Moves: {_moveCount}";
+            _timerText.text = FormatTime(_elapsedTime);
+
+            // Color moves text based on par
+            if (_parMoves > 0)
+            {
+                if (_moveCount <= _parMoves)
+                    _movesText.color = new Color(0.3f, 1f, 0.5f); // green — on par
+                else
+                    _movesText.color = new Color(1f, 0.5f, 0.3f); // orange — over par
+            }
+        }
+
+        private string FormatTime(float seconds)
+        {
+            int mins = (int)(seconds / 60f);
+            int secs = (int)(seconds % 60f);
+            if (mins > 0)
+                return $"{mins}:{secs:D2}";
+            return $"{secs}s";
+        }
+
+        private void BuildUI()
+        {
+            // Canvas
+            var canvasGO = new GameObject("HUD Canvas");
+            canvasGO.transform.SetParent(transform);
+            _canvas = canvasGO.AddComponent<Canvas>();
+            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _canvas.sortingOrder = 10;
+
+            var scaler = canvasGO.AddComponent<UnityEngine.UI.CanvasScaler>();
+            scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1080, 1920);
+            scaler.matchWidthOrHeight = 0.5f;
+
+            canvasGO.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+
+            // Level name — top center
+            _levelNameText = CreateText(canvasGO.transform, "LevelName", "",
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -40f),
+                fontSize: 42, alignment: TextAlignmentOptions.Center);
+            _levelNameText.color = new Color(0.7f, 0.8f, 1f);
+
+            // Par info — below level name
+            _parText = CreateText(canvasGO.transform, "Par", "",
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -90f),
+                fontSize: 24, alignment: TextAlignmentOptions.Center);
+            _parText.color = new Color(0.5f, 0.5f, 0.6f);
+
+            // Moves counter — top left
+            _movesText = CreateText(canvasGO.transform, "Moves", "Moves: 0",
+                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(30f, -40f),
+                fontSize: 32, alignment: TextAlignmentOptions.Left);
+            _movesText.color = Color.white;
+
+            // Timer — top right
+            _timerText = CreateText(canvasGO.transform, "Timer", "0s",
+                new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-30f, -40f),
+                fontSize: 32, alignment: TextAlignmentOptions.Right);
+            _timerText.color = Color.white;
+        }
+
+        private TextMeshProUGUI CreateText(Transform parent, string name, string text,
+            Vector2 anchorMin, Vector2 anchorMax, Vector2 position,
+            int fontSize = 32, TextAlignmentOptions alignment = TextAlignmentOptions.Left)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.pivot = anchorMin;
+            rect.anchoredPosition = position;
+            rect.sizeDelta = new Vector2(400, 60);
+
+            var tmp = go.AddComponent<TextMeshProUGUI>();
+            tmp.text = text;
+            tmp.fontSize = fontSize;
+            tmp.alignment = alignment;
+            tmp.enableAutoSizing = false;
+
+            return tmp;
+        }
+    }
+}
