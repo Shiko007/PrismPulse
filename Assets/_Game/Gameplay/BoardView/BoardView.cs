@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using PrismPulse.Core.Board;
 using PrismPulse.Core.Colors;
 
@@ -8,6 +9,7 @@ namespace PrismPulse.Gameplay.BoardView
     /// <summary>
     /// Spawns and manages all TileView instances on the board.
     /// Converts grid positions to world positions and handles tile creation.
+    /// Handles tap/click input via the new Input System.
     /// </summary>
     public class BoardView : MonoBehaviour
     {
@@ -23,14 +25,49 @@ namespace PrismPulse.Gameplay.BoardView
 
         private readonly Dictionary<GridPosition, TileView> _tileViews = new Dictionary<GridPosition, TileView>();
         private BoardState _boardState;
+        private Camera _cam;
 
         public System.Action<GridPosition> OnTileRotated;
 
         public void Initialize(BoardState boardState)
         {
             _boardState = boardState;
+            _cam = Camera.main;
             ClearBoard();
             SpawnTiles();
+        }
+
+        private void Update()
+        {
+            if (_boardState == null || _cam == null) return;
+
+            // Detect click/tap using new Input System
+            var mouse = Mouse.current;
+            if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+            {
+                HandleClick(mouse.position.ReadValue());
+                return;
+            }
+
+            // Also support touch
+            var touchscreen = Touchscreen.current;
+            if (touchscreen != null && touchscreen.primaryTouch.press.wasPressedThisFrame)
+            {
+                HandleClick(touchscreen.primaryTouch.position.ReadValue());
+            }
+        }
+
+        private void HandleClick(Vector2 screenPos)
+        {
+            var ray = _cam.ScreenPointToRay(screenPos);
+            if (Physics.Raycast(ray, out var hit, 100f))
+            {
+                var tileView = hit.collider.GetComponent<TileView>();
+                if (tileView != null)
+                {
+                    HandleTileTapped(tileView.GridPosition);
+                }
+            }
         }
 
         private void SpawnTiles()
@@ -53,13 +90,13 @@ namespace PrismPulse.Gameplay.BoardView
                     float worldY = (_boardState.Height - 1 - row) * spacing - offsetY;
 
                     var tileGO = Instantiate(_tilePrefab, transform);
+                    tileGO.gameObject.SetActive(true);
                     tileGO.transform.localPosition = new Vector3(worldX, worldY, 0f);
                     tileGO.transform.localScale = Vector3.one * _tileSize;
                     tileGO.name = $"Tile_{col}_{row}_{tile.Type}";
 
                     var tileView = tileGO.GetComponent<TileView>();
                     tileView.Initialize(gridPos, tile);
-                    tileView.OnTapped = HandleTileTapped;
 
                     _tileViews[gridPos] = tileView;
                 }

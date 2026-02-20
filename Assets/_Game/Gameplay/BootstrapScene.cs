@@ -16,7 +16,8 @@ namespace PrismPulse.Gameplay
             SetupCamera();
             var tileMaterial = CreateTileMaterial();
             var beamMaterial = CreateBeamMaterial();
-            var tilePrefab = TilePrefabBuilder.CreateDefaultTilePrefab(tileMaterial);
+            var indicatorMaterial = CreateBeamMaterial(); // unlit, glows with bloom
+            var tilePrefab = TilePrefabBuilder.CreateDefaultTilePrefab(tileMaterial, indicatorMaterial);
 
             // Board View
             var boardGO = new GameObject("BoardView");

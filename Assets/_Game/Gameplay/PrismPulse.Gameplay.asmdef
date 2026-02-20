@@ -3,7 +3,10 @@
     "rootNamespace": "PrismPulse.Gameplay",
     "references": [
         "PrismPulse.Core",
-        "DOTween.Modules"
+        "DOTween.Modules",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
