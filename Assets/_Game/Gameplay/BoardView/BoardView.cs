@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using DG.Tweening;
 using PrismPulse.Core.Board;
 using PrismPulse.Core.Colors;
+using PrismPulse.Gameplay.Effects;
 
 namespace PrismPulse.Gameplay.BoardView
 {
@@ -24,6 +26,7 @@ namespace PrismPulse.Gameplay.BoardView
         [SerializeField] private Material _tileMaterial;
 
         private readonly Dictionary<GridPosition, TileView> _tileViews = new Dictionary<GridPosition, TileView>();
+        private readonly HashSet<GridPosition> _previouslySatisfiedTargets = new HashSet<GridPosition>();
         private BoardState _boardState;
         private Camera _cam;
 
@@ -33,6 +36,7 @@ namespace PrismPulse.Gameplay.BoardView
         {
             _boardState = boardState;
             _cam = Camera.main;
+            _previouslySatisfiedTargets.Clear();
             ClearBoard();
             SpawnTiles();
         }
@@ -107,9 +111,11 @@ namespace PrismPulse.Gameplay.BoardView
         {
             if (_boardState.RotateTile(pos))
             {
+                var view = _tileViews[pos];
                 ref var tile = ref _boardState.GetTile(pos);
-                _tileViews[pos].AnimateRotation(tile.Rotation);
-                _tileViews[pos].UpdateVisual(tile);
+                view.AnimateClick();
+                view.AnimateRotation(tile.Rotation);
+                view.UpdateVisual(tile);
                 OnTileRotated?.Invoke(pos);
             }
         }
@@ -139,12 +145,30 @@ namespace PrismPulse.Gameplay.BoardView
                     view.SetBeamLit(true, kvp.Value);
             }
 
-            // Highlight satisfied targets
+            // Highlight satisfied targets and spawn sparkles on newly satisfied ones
             foreach (var kvp in result.TargetHits)
             {
                 if (_tileViews.TryGetValue(kvp.Key, out var view))
+                {
                     view.SetBeamLit(true, kvp.Value);
+
+                    // Check if target is actually satisfied (required color matches)
+                    var tile = _boardState.GetTile(kvp.Key);
+                    if (tile.Type == TileType.Target && kvp.Value == tile.RequiredColor
+                        && !_previouslySatisfiedTargets.Contains(kvp.Key))
+                    {
+                        _previouslySatisfiedTargets.Add(kvp.Key);
+                        var worldPos = GridToWorldPosition(kvp.Key);
+                        var color = LightColorMap.ToEmissionColor(kvp.Value, 2f);
+                        ParticleEffectFactory.CreateTargetSatisfiedEffect(worldPos, color);
+                    }
+                }
             }
+
+            // Remove targets that are no longer satisfied
+            _previouslySatisfiedTargets.RemoveWhere(pos =>
+                !result.TargetHits.ContainsKey(pos) ||
+                result.TargetHits[pos] != _boardState.GetTile(pos).RequiredColor);
         }
 
         public Vector3 GridToWorldPosition(GridPosition pos)
@@ -162,7 +186,10 @@ namespace PrismPulse.Gameplay.BoardView
             foreach (var kvp in _tileViews)
             {
                 if (kvp.Value != null)
+                {
+                    kvp.Value.transform.DOKill();
                     Destroy(kvp.Value.gameObject);
+                }
             }
             _tileViews.Clear();
         }

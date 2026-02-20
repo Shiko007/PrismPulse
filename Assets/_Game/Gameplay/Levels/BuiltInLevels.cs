@@ -19,6 +19,7 @@ namespace PrismPulse.Gameplay.Levels
         {
             Level01(), Level02(), Level03(), Level04(),
             Level05(), Level06(), Level07(), Level08(),
+            Level09(), Level10(), Level11(), Level12(),
         };
 
         // ================================================================
@@ -307,6 +308,125 @@ namespace PrismPulse.Gameplay.Levels
             };
         }
 
+        // ================================================================
+        // Level 9: "Corner Turn" — Introduces Bend tile.
+        //   2x2 board.
+        //   [Src(R,→)] [Bend(rot=0)]
+        //       .      [Tgt(R)]
+        //
+        //   Beam goes Right into Bend. At rot=2, Bend redirects Down.
+        //   Solution: click Bend twice (rot 0→1→2). 2 moves.
+        // ================================================================
+        private static LevelDefinition Level09()
+        {
+            return new LevelDefinition
+            {
+                Id = "09", Name = "Corner Turn", Width = 2, Height = 2,
+                ParMoves = 2, ParTimeSeconds = 15f,
+                Tiles = new[]
+                {
+                    Src(0, 0, LightColor.Red, Direction.Right),
+                    Bnd(1, 0, 0), // needs rot=2, start at 0 → 2 clicks
+                    Tgt(1, 1, LightColor.Red),
+                }
+            };
+        }
+
+        // ================================================================
+        // Level 10: "Reflection" — Introduces Mirror tile.
+        //   3x2 board.
+        //   [Src(B,↓)]  .       .
+        //   [Mirror]   [Str(|)] [Tgt(B)]
+        //
+        //   Blue goes Down into Mirror. At rot=0, Mirror sends Right.
+        //   Then through Straight to Target.
+        //   Solution: click Mirror once (rot 3→0), click Str once (rot 0→1). 2 moves.
+        // ================================================================
+        private static LevelDefinition Level10()
+        {
+            return new LevelDefinition
+            {
+                Id = "10", Name = "Reflection", Width = 3, Height = 2,
+                ParMoves = 2, ParTimeSeconds = 20f,
+                Tiles = new[]
+                {
+                    Src(0, 0, LightColor.Blue, Direction.Down),
+                    Mir(0, 1, 3),  // needs rot=0, start at 3 → 1 click
+                    Str(1, 1, 0),  // needs rot=1, start at 0 → 1 click
+                    Tgt(2, 1, LightColor.Blue),
+                }
+            };
+        }
+
+        // ================================================================
+        // Level 11: "Merge Point" — Introduces Merger tile.
+        //   5x2 board.
+        //   .         .       [Tgt(P)]     .         .
+        //   [Src(R,→)] [Str(|)] [Merger(L)] [Str(|)] [Src(B,←)]
+        //
+        //   Red+Blue enter Merger from sides, merge to Purple, output Up to Target.
+        //   Merger is locked at rot=0. Rotate both Straights.
+        //   Solution: click each Str once. 2 moves.
+        // ================================================================
+        private static LevelDefinition Level11()
+        {
+            return new LevelDefinition
+            {
+                Id = "11", Name = "Merge Point", Width = 5, Height = 2,
+                ParMoves = 2, ParTimeSeconds = 20f,
+                Tiles = new[]
+                {
+                    Tgt(2, 0, LightColor.Purple),
+                    Src(0, 1, LightColor.Red, Direction.Right),
+                    Str(1, 1, 0),  // needs rot=1
+                    new LevelDefinition.TileDef { Col=2, Row=1, Type=TileType.Merger, Rotation=0, Locked=true },
+                    Str(3, 1, 0),  // needs rot=1
+                    Src(4, 1, LightColor.Blue, Direction.Left),
+                }
+            };
+        }
+
+        // ================================================================
+        // Level 12: "Crystal Maze" — Capstone: Bend + Mirror + Cross + Straights.
+        //   5x5 board. Three independent paths crossing via Cross tile.
+        //
+        //   Row 0:  .     .    Src(G,↓)  .       .
+        //   Row 1:  .     .    Str(1)    .       .
+        //   Row 2: Src(R,→) Str(0) Cross(L) Str(0) Tgt(R)
+        //   Row 3:  .     .    Str(1)    .       .
+        //   Row 4:  .     .    Mirror(1) Str(0) Tgt(G)
+        //
+        //   Green: ↓ through Str→Cross→Str→Mirror(redirects Right)→Str→Tgt
+        //   Red:   → through Str→Cross→Str→Tgt
+        //   Solution: rotate all 5 Straights (each 1 click) + Mirror (1 click). 6 moves.
+        // ================================================================
+        private static LevelDefinition Level12()
+        {
+            return new LevelDefinition
+            {
+                Id = "12", Name = "Crystal Maze", Width = 5, Height = 5,
+                ParMoves = 6, ParTimeSeconds = 45f,
+                Tiles = new[]
+                {
+                    // Green vertical path: col 2, rows 0→4 with Mirror redirect
+                    Src(2, 0, LightColor.Green, Direction.Down),
+                    Str(2, 1, 1),  // starts horizontal, needs vertical (1 click)
+                    Locked(2, 2, TileType.Cross),
+                    Str(2, 3, 1),  // starts horizontal, needs vertical (1 click)
+                    Mir(2, 4, 1),  // needs rot=2, start at 1 → 1 click
+                    Str(3, 4, 0),  // starts vertical, needs horizontal (1 click)
+                    Tgt(4, 4, LightColor.Green),
+
+                    // Red horizontal path: row 2, cols 0→4
+                    Src(0, 2, LightColor.Red, Direction.Right),
+                    Str(1, 2, 0),  // starts vertical, needs horizontal (1 click)
+                    // (2,2) is Cross
+                    Str(3, 2, 0),  // starts vertical, needs horizontal (1 click)
+                    Tgt(4, 2, LightColor.Red),
+                }
+            };
+        }
+
         // === Helpers ===
 
         private static LevelDefinition.TileDef Src(int col, int row, LightColor color, Direction dir)
@@ -325,6 +445,24 @@ namespace PrismPulse.Gameplay.Levels
         {
             return new LevelDefinition.TileDef
             { Col = col, Row = row, Type = TileType.Straight, Rotation = rotation, Locked = false };
+        }
+
+        private static LevelDefinition.TileDef Bnd(int col, int row, int rotation)
+        {
+            return new LevelDefinition.TileDef
+            { Col = col, Row = row, Type = TileType.Bend, Rotation = rotation, Locked = false };
+        }
+
+        private static LevelDefinition.TileDef Mir(int col, int row, int rotation)
+        {
+            return new LevelDefinition.TileDef
+            { Col = col, Row = row, Type = TileType.Mirror, Rotation = rotation, Locked = false };
+        }
+
+        private static LevelDefinition.TileDef Mrg(int col, int row, int rotation)
+        {
+            return new LevelDefinition.TileDef
+            { Col = col, Row = row, Type = TileType.Merger, Rotation = rotation, Locked = false };
         }
 
         private static LevelDefinition.TileDef Locked(int col, int row, TileType type)

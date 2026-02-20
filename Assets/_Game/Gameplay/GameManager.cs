@@ -1,6 +1,9 @@
+using System.Collections.Generic;
 using UnityEngine;
 using PrismPulse.Core.Board;
+using PrismPulse.Core.Colors;
 using PrismPulse.Core.Puzzle;
+using PrismPulse.Gameplay.Effects;
 using PrismPulse.Gameplay.Levels;
 using PrismPulse.Gameplay.UI;
 
@@ -105,9 +108,25 @@ namespace PrismPulse.Gameplay
                 Debug.Log($"Puzzle '{_levels[_currentLevelIndex].Name}' solved! " +
                           $"{_moveCount} moves, {time:F1}s, {stars} stars");
 
+                // Celebration particles using level's beam colors
+                var levelColors = GetLevelColors();
+                ParticleEffectFactory.CreatePuzzleSolvedEffect(Vector3.zero, levelColors);
+
                 if (_winScreen != null)
                     _winScreen.Show(stars, _moveCount, time, hasNext);
             }
+        }
+
+        private Color[] GetLevelColors()
+        {
+            var colors = new List<Color>(4);
+            foreach (var kvp in _beamResult.TargetHits)
+            {
+                var c = LightColorMap.ToUnityColor(kvp.Value);
+                if (!colors.Contains(c))
+                    colors.Add(c);
+            }
+            return colors.ToArray();
         }
 
         private void TraceAndRender()

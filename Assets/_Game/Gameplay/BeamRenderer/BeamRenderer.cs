@@ -21,6 +21,11 @@ namespace PrismPulse.Gameplay.BeamRenderer
         private readonly List<LineRenderer> _activeLines = new List<LineRenderer>();
         private readonly List<LineRenderer> _pool = new List<LineRenderer>();
 
+        private static readonly AnimationCurve BeamWidthCurve = new AnimationCurve(
+            new Keyframe(0f, 0.7f),
+            new Keyframe(0.5f, 1f),
+            new Keyframe(1f, 0.7f));
+
         /// <summary>
         /// Rebuild all beam visuals from a new BeamResult.
         /// </summary>
@@ -43,11 +48,11 @@ namespace PrismPulse.Gameplay.BeamRenderer
                 line.SetPosition(0, from);
                 line.SetPosition(1, to);
 
-                Color beamColor = LightColorMap.ToEmissionColor(segment.Color, 2f);
+                Color beamColor = LightColorMap.ToEmissionColor(segment.Color, 2.5f);
                 line.startColor = beamColor;
                 line.endColor = beamColor;
-                line.startWidth = _beamWidth;
-                line.endWidth = _beamWidth;
+                line.widthMultiplier = _beamWidth;
+                line.widthCurve = BeamWidthCurve;
             }
         }
 
@@ -75,8 +80,8 @@ namespace PrismPulse.Gameplay.BeamRenderer
                 line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 line.receiveShadows = false;
                 line.useWorldSpace = true;
-                line.numCapVertices = 4;
-                line.numCornerVertices = 4;
+                line.numCapVertices = 8;
+                line.numCornerVertices = 8;
             }
 
             _activeLines.Add(line);

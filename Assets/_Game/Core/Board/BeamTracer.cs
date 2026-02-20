@@ -16,8 +16,8 @@ namespace PrismPulse.Core.Board
         private readonly List<GridPosition> _targetBuffer = new List<GridPosition>(8);
         private readonly Queue<(GridPosition pos, Direction dir, LightColor color)> _queue =
             new Queue<(GridPosition, Direction, LightColor)>();
-        private readonly HashSet<(GridPosition, Direction)> _visited =
-            new HashSet<(GridPosition, Direction)>();
+        private readonly Dictionary<(GridPosition, Direction), LightColor> _visited =
+            new Dictionary<(GridPosition, Direction), LightColor>();
 
         /// <summary>
         /// Accumulated colors arriving at each cell from each direction.
@@ -56,10 +56,13 @@ namespace PrismPulse.Core.Board
                 var (pos, dir, color) = _queue.Dequeue();
 
                 // Prevent infinite loops (beam re-entering same cell in same direction)
+                // Allow re-processing if a new color component arrives (needed for Merger)
                 var visitKey = (pos, dir);
-                if (_visited.Contains(visitKey))
+                if (_visited.TryGetValue(visitKey, out var prevColor) && prevColor.Contains(color))
                     continue;
-                _visited.Add(visitKey);
+                _visited[visitKey] = _visited.ContainsKey(visitKey)
+                    ? LightColorMath.Mix(prevColor, color)
+                    : color;
 
                 ref var tile = ref board.GetTile(pos);
 
