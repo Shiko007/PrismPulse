@@ -1,7 +1,10 @@
 {
     "name": "PrismPulse.Editor",
     "rootNamespace": "PrismPulse.Editor",
-    "references": [],
+    "references": [
+        "PrismPulse.Core",
+        "PrismPulse.Gameplay"
+    ],
     "includePlatforms": [
         "Editor"
     ],

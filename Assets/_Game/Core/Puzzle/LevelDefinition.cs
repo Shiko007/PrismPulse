@@ -17,6 +17,7 @@ namespace PrismPulse.Core.Puzzle
         public int Height;
         public int ParMoves;     // Target number of moves for best rating
         public float ParTimeSeconds; // Target time for best rating
+        public bool ShuffleMode; // If true, unlocked tile positions are shuffled on load
         public TileDef[] Tiles;
 
         [Serializable]
@@ -36,7 +37,8 @@ namespace PrismPulse.Core.Puzzle
         /// </summary>
         public BoardState ToBoardState()
         {
-            var board = new BoardState(Width, Height);
+            // Board is always 5x5; tiles are placed at their defined positions
+            var board = new BoardState(5, 5);
 
             foreach (var def in Tiles)
             {

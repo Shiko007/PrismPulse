@@ -44,8 +44,15 @@ namespace PrismPulse.Gameplay
         private LevelDefinition[] _levels;
         private int _currentLevelIndex;
 
-        private readonly Stack<(GridPosition pos, int prevRotation)> _undoStack =
-            new Stack<(GridPosition, int)>();
+        private struct UndoEntry
+        {
+            public bool IsSwap;
+            public GridPosition Pos;
+            public int PrevRotation;
+            public GridPosition SwapTarget;
+        }
+
+        private readonly Stack<UndoEntry> _undoStack = new Stack<UndoEntry>();
         private Dictionary<GridPosition, int> _solution;
 
         private void Awake()
@@ -148,13 +155,20 @@ namespace PrismPulse.Gameplay
             if (_hud != null) _hud.SetUndoInteractable(false);
 
             _beamRenderer.ClearBeams();
+            _boardView.ShuffleMode = level.ShuffleMode;
+            if (level.ShuffleMode)
+            {
+                int seed = GetDeterministicHash(level.Id);
+                ShuffleBoardState(_boardState, seed);
+            }
             _boardView.Initialize(_boardState);
             _boardView.OnTileRotated = HandleTileRotated;
+            _boardView.OnTileSwapped = HandleTileSwapped;
             _boardView.OnSpawnComplete = () =>
             {
                 TraceAndRender(animateAllBeams: true);
             };
-            FitCameraToBoard(level.Width, level.Height);
+            FitCameraToBoard(5, 5);
 
             if (_hud != null)
                 _hud.SetLevelInfo($"{level.Id}. {level.Name}", level.ParMoves, level.ParTimeSeconds);
@@ -205,7 +219,7 @@ namespace PrismPulse.Gameplay
             // Push previous rotation for undo (current rotation is already incremented)
             int currentRotation = _boardState.GetTile(pos).Rotation;
             int prevRotation = (currentRotation + 3) % 4;
-            _undoStack.Push((pos, prevRotation));
+            _undoStack.Push(new UndoEntry { IsSwap = false, Pos = pos, PrevRotation = prevRotation });
             if (_hud != null) _hud.SetUndoInteractable(true);
 
             _moveCount++;
@@ -244,12 +258,61 @@ namespace PrismPulse.Gameplay
             }
         }
 
+        private void HandleTileSwapped(GridPosition from, GridPosition to)
+        {
+            if (_puzzleSolved) return;
+
+            _boardState.SwapTiles(from, to);
+            _undoStack.Push(new UndoEntry { IsSwap = true, Pos = from, SwapTarget = to });
+            if (_hud != null) _hud.SetUndoInteractable(true);
+
+            _moveCount++;
+            if (_hud != null) _hud.OnMove(_moveCount);
+
+            TraceAndRender();
+
+            if (_beamResult.AllTargetsSatisfied)
+            {
+                _puzzleSolved = true;
+                if (_hud != null) _hud.Stop();
+
+                bool hasNext = _currentLevelIndex + 1 < _levels.Length;
+                int stars = _hud != null ? _hud.GetStarRating() : 1;
+                float time = _hud != null ? _hud.ElapsedTime : 0f;
+
+                Progress.ProgressManager.SetStars(_levels[_currentLevelIndex].Id, stars);
+
+                var levelColors = GetLevelColors();
+                Effects.ParticleEffectFactory.CreatePuzzleSolvedEffect(Vector3.zero, levelColors);
+
+                var cam = Camera.main;
+                if (cam != null)
+                    cam.transform.DOShakePosition(0.3f, _shakeStrength, 10, 90f);
+
+                if (SoundManager.Instance != null) SoundManager.Instance.PlaySolve();
+                HapticFeedback.Success();
+
+                if (_winScreen != null)
+                    _winScreen.Show(stars, _moveCount, time, hasNext);
+            }
+        }
+
         public void UndoLastMove()
         {
             if (_puzzleSolved || _undoStack.Count == 0) return;
 
-            var (pos, prevRotation) = _undoStack.Pop();
-            _boardView.SetTileRotation(pos, prevRotation);
+            var entry = _undoStack.Pop();
+
+            if (entry.IsSwap)
+            {
+                // Swap back
+                _boardState.SwapTiles(entry.Pos, entry.SwapTarget);
+                _boardView.SwapTileViews(entry.Pos, entry.SwapTarget);
+            }
+            else
+            {
+                _boardView.SetTileRotation(entry.Pos, entry.PrevRotation);
+            }
 
             _moveCount--;
             if (_hud != null)
@@ -281,6 +344,51 @@ namespace PrismPulse.Gameplay
                 tileView.AnimateHintPulse();
                 if (SoundManager.Instance != null) SoundManager.Instance.PlayBeamConnect();
                 HapticFeedback.MediumTap();
+            }
+        }
+
+        /// <summary>
+        /// Shuffle unlocked tile positions across the entire 5x5 board.
+        /// Tiles can land on any non-locked cell (including empty ones).
+        /// </summary>
+        private void ShuffleBoardState(BoardState board, int seed)
+        {
+            var rng = new System.Random(seed);
+
+            var allSlots = new List<GridPosition>();
+            var tilePositions = new List<GridPosition>();
+
+            for (int row = 0; row < board.Height; row++)
+            {
+                for (int col = 0; col < board.Width; col++)
+                {
+                    var pos = new GridPosition(col, row);
+                    var tile = board.GetTile(pos);
+                    if (tile.Locked) continue;
+                    allSlots.Add(pos);
+                    if (tile.Type != TileType.Empty)
+                        tilePositions.Add(pos);
+                }
+            }
+
+            if (tilePositions.Count < 2 || allSlots.Count < 2) return;
+
+            for (int i = allSlots.Count - 1; i > 0; i--)
+            {
+                int j = rng.Next(0, i + 1);
+                if (i != j)
+                    board.SwapTiles(allSlots[i], allSlots[j]);
+            }
+        }
+
+        private static int GetDeterministicHash(string s)
+        {
+            unchecked
+            {
+                int hash = 5381;
+                foreach (char c in s)
+                    hash = hash * 33 + c;
+                return hash;
             }
         }
 

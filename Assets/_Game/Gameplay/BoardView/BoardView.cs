@@ -31,16 +31,29 @@ namespace PrismPulse.Gameplay.BoardView
         [SerializeField] private float _spawnDuration = 0.3f;
         [SerializeField] private float _spawnStagger = 0.03f;
 
+        [Header("Drag")]
+        [SerializeField] private float _dragThreshold = 0.3f;
+
         private readonly Dictionary<GridPosition, TileView> _tileViews = new Dictionary<GridPosition, TileView>();
         private readonly HashSet<GridPosition> _previouslySatisfiedTargets = new HashSet<GridPosition>();
         private BoardState _boardState;
         private Camera _cam;
         private bool _isSpawning;
+        private bool _shuffleMode;
+
+        // Drag state
+        private TileView _draggedTile;
+        private Vector3 _dragStartLocalPos;
+        private Vector2 _pointerDownScreenPos;
+        private bool _isDragging;
+        private bool _pointerIsDown;
 
         public System.Action<GridPosition> OnTileRotated;
+        public System.Action<GridPosition, GridPosition> OnTileSwapped;
         public System.Action OnSpawnComplete;
 
         public bool IsSpawning => _isSpawning;
+        public bool ShuffleMode { get => _shuffleMode; set => _shuffleMode = value; }
 
         public void Initialize(BoardState boardState)
         {
@@ -55,27 +68,42 @@ namespace PrismPulse.Gameplay.BoardView
         {
             if (_boardState == null || _cam == null || _isSpawning) return;
 
-            // Detect click/tap using new Input System
+            Vector2 screenPos = Vector2.zero;
+            bool pressed = false;
+            bool held = false;
+            bool released = false;
+
             var mouse = Mouse.current;
-            if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+            var touchscreen = Touchscreen.current;
+
+            if (mouse != null)
             {
-                HandleClick(mouse.position.ReadValue());
-                return;
+                screenPos = mouse.position.ReadValue();
+                pressed = mouse.leftButton.wasPressedThisFrame;
+                held = mouse.leftButton.isPressed;
+                released = mouse.leftButton.wasReleasedThisFrame;
+            }
+            else if (touchscreen != null)
+            {
+                screenPos = touchscreen.primaryTouch.position.ReadValue();
+                pressed = touchscreen.primaryTouch.press.wasPressedThisFrame;
+                held = touchscreen.primaryTouch.press.isPressed;
+                released = touchscreen.primaryTouch.press.wasReleasedThisFrame;
             }
 
-            // Also support touch
-            var touchscreen = Touchscreen.current;
-            if (touchscreen != null && touchscreen.primaryTouch.press.wasPressedThisFrame)
-            {
-                HandleClick(touchscreen.primaryTouch.position.ReadValue());
-            }
+            if (pressed) HandlePointerDown(screenPos);
+            else if (held && _pointerIsDown) HandlePointerDrag(screenPos);
+            else if (released && _pointerIsDown) HandlePointerUp(screenPos);
         }
 
-        private void HandleClick(Vector2 screenPos)
+        private void HandlePointerDown(Vector2 screenPos)
         {
-            // Don't interact with tiles when UI is on top (win screen, menu, etc.)
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
                 return;
+
+            _pointerIsDown = true;
+            _pointerDownScreenPos = screenPos;
+            _isDragging = false;
 
             var ray = _cam.ScreenPointToRay(screenPos);
             if (Physics.Raycast(ray, out var hit, 100f))
@@ -83,9 +111,143 @@ namespace PrismPulse.Gameplay.BoardView
                 var tileView = hit.collider.GetComponent<TileView>();
                 if (tileView != null)
                 {
-                    HandleTileTapped(tileView.GridPosition);
+                    var tile = _boardState.GetTile(tileView.GridPosition);
+                    // Only allow dragging unlocked, non-empty tiles in shuffle mode
+                    if (_shuffleMode && !tile.Locked && tile.Type != TileType.Empty)
+                    {
+                        _draggedTile = tileView;
+                        _dragStartLocalPos = tileView.transform.localPosition;
+                    }
                 }
             }
+        }
+
+        private void HandlePointerDrag(Vector2 screenPos)
+        {
+            if (_draggedTile == null) return;
+
+            Vector3 worldPos = _cam.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, Mathf.Abs(_cam.transform.position.z)));
+            Vector3 localPos = transform.InverseTransformPoint(worldPos);
+
+            float dist = Vector2.Distance(screenPos, _pointerDownScreenPos);
+            if (!_isDragging && dist > _dragThreshold * Screen.dpi / 2.5f)
+            {
+                _isDragging = true;
+            }
+
+            if (_isDragging)
+            {
+                _draggedTile.transform.localPosition = new Vector3(localPos.x, localPos.y, -1f);
+            }
+        }
+
+        private void HandlePointerUp(Vector2 screenPos)
+        {
+            _pointerIsDown = false;
+
+            if (_isDragging && _draggedTile != null)
+            {
+                // Find the grid cell closest to the drop position
+                GridPosition dropPos = WorldToGridPosition(_draggedTile.transform.localPosition);
+                GridPosition fromPos = _draggedTile.GridPosition;
+
+                if (_boardState.InBounds(dropPos) && !dropPos.Equals(fromPos))
+                {
+                    var targetTile = _boardState.GetTile(dropPos);
+                    if (!targetTile.Locked)
+                    {
+                        // Valid swap (with tile or empty space) — perform it
+                        PerformVisualSwap(fromPos, dropPos);
+                        _draggedTile = null;
+                        _isDragging = false;
+                        return;
+                    }
+                }
+
+                // Invalid drop — snap back
+                _draggedTile.transform.DOLocalMove(_dragStartLocalPos, 0.15f).SetEase(Ease.OutQuad);
+                _draggedTile = null;
+                _isDragging = false;
+            }
+            else if (_draggedTile != null || !_isDragging)
+            {
+                // Short press — treat as tap (rotate)
+                if (_draggedTile != null)
+                    _draggedTile.transform.localPosition = _dragStartLocalPos;
+
+                var ray = _cam.ScreenPointToRay(screenPos);
+                if (Physics.Raycast(ray, out var hit, 100f))
+                {
+                    var tileView = hit.collider.GetComponent<TileView>();
+                    if (tileView != null)
+                        HandleTileTapped(tileView.GridPosition);
+                }
+                _draggedTile = null;
+                _isDragging = false;
+            }
+        }
+
+        private void PerformVisualSwap(GridPosition fromPos, GridPosition toPos)
+        {
+            var fromView = _tileViews.ContainsKey(fromPos) ? _tileViews[fromPos] : null;
+            var toView = _tileViews.ContainsKey(toPos) ? _tileViews[toPos] : null;
+
+            Vector3 fromLocalPos = GridToLocalPosition(fromPos);
+            Vector3 toLocalPos = GridToLocalPosition(toPos);
+
+            // Reset Z on dragged tile and animate to target
+            if (fromView != null)
+            {
+                fromView.transform.localPosition = new Vector3(
+                    fromView.transform.localPosition.x,
+                    fromView.transform.localPosition.y, 0f);
+                fromView.AnimateSwapTo(toLocalPos);
+                fromView.GridPosition = toPos;
+            }
+
+            // Animate displaced tile to dragged tile's original position
+            if (toView != null)
+            {
+                toView.AnimateSwapTo(fromLocalPos);
+                toView.GridPosition = fromPos;
+            }
+
+            // Update dictionary
+            if (fromView != null) _tileViews[toPos] = fromView;
+            else _tileViews.Remove(toPos);
+
+            if (toView != null) _tileViews[fromPos] = toView;
+            else _tileViews.Remove(fromPos);
+
+            if (SoundManager.Instance != null) SoundManager.Instance.PlayRotate();
+            HapticFeedback.LightTap();
+
+            OnTileSwapped?.Invoke(fromPos, toPos);
+        }
+
+        private GridPosition WorldToGridPosition(Vector3 localPos)
+        {
+            float spacing = _tileSize + _tileGap;
+            float offsetX = (_boardState.Width - 1) * spacing * 0.5f;
+            float offsetY = (_boardState.Height - 1) * spacing * 0.5f;
+
+            int col = Mathf.RoundToInt((localPos.x + offsetX) / spacing);
+            int row = Mathf.RoundToInt((_boardState.Height - 1) - (localPos.y + offsetY) / spacing);
+
+            col = Mathf.Clamp(col, 0, _boardState.Width - 1);
+            row = Mathf.Clamp(row, 0, _boardState.Height - 1);
+
+            return new GridPosition(col, row);
+        }
+
+        private Vector3 GridToLocalPosition(GridPosition pos)
+        {
+            float spacing = _tileSize + _tileGap;
+            float offsetX = (_boardState.Width - 1) * spacing * 0.5f;
+            float offsetY = (_boardState.Height - 1) * spacing * 0.5f;
+            float worldX = pos.Col * spacing - offsetX;
+            float worldY = (_boardState.Height - 1 - pos.Row) * spacing - offsetY;
+            return new Vector3(worldX, worldY, 0f);
         }
 
         private void SpawnTiles()
@@ -242,6 +404,37 @@ namespace PrismPulse.Gameplay.BoardView
                 view.AnimateRotation(rotation);
                 view.UpdateVisual(tile);
             }
+        }
+
+        /// <summary>
+        /// Swap two TileView positions visually (for undo). Animates both tiles.
+        /// </summary>
+        public void SwapTileViews(GridPosition posA, GridPosition posB)
+        {
+            var viewA = _tileViews.ContainsKey(posA) ? _tileViews[posA] : null;
+            var viewB = _tileViews.ContainsKey(posB) ? _tileViews[posB] : null;
+
+            Vector3 localA = GridToLocalPosition(posA);
+            Vector3 localB = GridToLocalPosition(posB);
+
+            // viewA goes to posB's world position and vice versa
+            if (viewA != null)
+            {
+                viewA.AnimateSwapTo(localB);
+                viewA.GridPosition = posB;
+            }
+            if (viewB != null)
+            {
+                viewB.AnimateSwapTo(localA);
+                viewB.GridPosition = posA;
+            }
+
+            // Swap dictionary entries
+            if (viewA != null) _tileViews[posB] = viewA;
+            else _tileViews.Remove(posB);
+
+            if (viewB != null) _tileViews[posA] = viewB;
+            else _tileViews.Remove(posA);
         }
 
         public void ClearBoard()

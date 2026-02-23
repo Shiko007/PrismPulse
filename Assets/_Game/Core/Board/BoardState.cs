@@ -51,6 +51,23 @@ namespace PrismPulse.Core.Board
         }
 
         /// <summary>
+        /// Swap two tiles on the board. Returns false if either tile is locked.
+        /// Allows swapping with empty cells (the dragged tile moves there).
+        /// </summary>
+        public bool SwapTiles(GridPosition a, GridPosition b)
+        {
+            if (!InBounds(a) || !InBounds(b)) return false;
+            ref var tileA = ref GetTile(a);
+            ref var tileB = ref GetTile(b);
+            if (tileA.Locked || tileB.Locked) return false;
+
+            var temp = tileA;
+            tileA = tileB;
+            tileB = temp;
+            return true;
+        }
+
+        /// <summary>
         /// Find all source tile positions on the board.
         /// </summary>
         public void GetSources(List<GridPosition> buffer)

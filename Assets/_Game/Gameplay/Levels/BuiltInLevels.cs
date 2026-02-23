@@ -245,25 +245,25 @@ namespace PrismPulse.Gameplay.Levels
         }
 
         // ================================================================
-        // Level 7: "Long Road" — Longer horizontal path, more straights.
-        //   7x1 board. Red source, 5 straights (alternating wrong rotations), target.
-        //   Solution: rotate straights at positions 1,2,3,4,5. 5 moves.
+        // Level 7: "Long Road" — Horizontal path with straights.
+        //   5x1 board. Blue source, 3 straights, target.
+        //   Solution: rotate straights at positions 1,2,3. 3 moves.
         // ================================================================
         private static LevelDefinition Level07()
         {
+            // Src(B,↓)@(0,0) → Bnd(0,1)→R → Str(1,1) → Str(2,1) → Tgt(3,1)
             return new LevelDefinition
             {
-                Id = "07", Name = "Long Road", Width = 7, Height = 1,
-                ParMoves = 5, ParTimeSeconds = 20f,
+                Id = "07", Name = "Long Road", Width = 4, Height = 2,
+                ParMoves = 4, ParTimeSeconds = 20f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
-                    Src(0, 0, LightColor.Blue, Direction.Right),
-                    Str(1, 0, 0),
-                    Str(2, 0, 0),
-                    Str(3, 0, 0),
-                    Str(4, 0, 0),
-                    Str(5, 0, 0),
-                    Tgt(6, 0, LightColor.Blue),
+                    Src(0, 0, LightColor.Blue, Direction.Down),
+                    Bnd(0, 1, 2),  // needs rot=0 → 2 clicks (Down→Right)
+                    Str(1, 1, 0),  // needs rot=1 → 1 click
+                    Str(2, 1, 0),  // needs rot=1 → 1 click
+                    Tgt(3, 1, LightColor.Blue),
                 }
             };
         }
@@ -300,18 +300,33 @@ namespace PrismPulse.Gameplay.Levels
         // ================================================================
         private static LevelDefinition Level08()
         {
+            // 3x3. Three sources from edges, bends route to White target at center.
+            // No source faces target directly.
+            // R(↓)@(0,0) → Bnd(0,1)→R → Tgt(W)@(1,1)
+            // G(→)@(0,2) → Bnd(0,1) already used... use different layout.
+            // Src(R,↓)@(0,0), Src(G,↓)@(2,0), Src(B,→)@(0,2)
+            // R: ↓Bnd(0,1)→Right→Tgt(1,1). G: ↓Bnd(2,1)→Left→Tgt(1,1). B: →Bnd...
+            // Simpler: 3 sources all pointing Down from row 0, bends redirect to center target.
+            // 3x3:
+            // Row 0: Src(R,↓)  .      Src(B,↓)
+            // Row 1: Bnd      Tgt(W)  Bnd
+            // Row 2: .        Src(G,↑) .
+            // R: ↓Bnd(0,1) rot=0→Right→Tgt(1,1). B: ↓Bnd(2,1) rot=3→Left→Tgt(1,1). G: ↑Tgt(1,1).
+            // R|G|B = White ✓. No source faces target on same row/col.
+            // Bnd(0,1): start 3→0, 1 click. Bnd(2,1): start 2→3, 1 click. Total: 2 moves.
             return new LevelDefinition
             {
-                Id = "08", Name = "Spectrum", Width = 5, Height = 2,
+                Id = "08", Name = "Spectrum", Width = 3, Height = 3,
                 ParMoves = 2, ParTimeSeconds = 20f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
-                    Src(2, 0, LightColor.Green, Direction.Down),
-                    Src(0, 1, LightColor.Red, Direction.Right),
-                    Str(1, 1, 0),
-                    Tgt(2, 1, LightColor.White),
-                    Str(3, 1, 0),
-                    Src(4, 1, LightColor.Blue, Direction.Left),
+                    Src(0, 0, LightColor.Red, Direction.Down),
+                    Src(2, 0, LightColor.Blue, Direction.Down),
+                    Bnd(0, 1, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Tgt(1, 1, LightColor.White),
+                    Bnd(2, 1, 2),  // needs rot=3 → 1 click (Down→Left)
+                    Src(1, 2, LightColor.Green, Direction.Up),
                 }
             };
         }
@@ -331,6 +346,7 @@ namespace PrismPulse.Gameplay.Levels
             {
                 Id = "09", Name = "Corner Turn", Width = 2, Height = 2,
                 ParMoves = 2, ParTimeSeconds = 15f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(0, 0, LightColor.Red, Direction.Right),
@@ -356,6 +372,7 @@ namespace PrismPulse.Gameplay.Levels
             {
                 Id = "10", Name = "Reflection", Width = 3, Height = 2,
                 ParMoves = 2, ParTimeSeconds = 20f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(0, 0, LightColor.Blue, Direction.Down),
@@ -378,18 +395,30 @@ namespace PrismPulse.Gameplay.Levels
         // ================================================================
         private static LevelDefinition Level11()
         {
+            // Merge Point — Sources point Down, bend into Merger from sides.
+            // No source faces target or merger on same row/col through empties.
+            //
+            // 5x3:
+            // Row 0: Src(R,↓)   .     Tgt(P)    .     Src(B,↓)
+            // Row 1: Bnd       Str   Merger(L)  Str    Bnd
+            // R: ↓Bnd(0,1) rot=0→R→Str(1,1)→Merger(2,1) from Left ✓
+            // B: ↓Bnd(4,1) rot=3→L→Str(3,1)→Merger(2,1) from Right ✓
+            // Merger rot=0: L+R→Up. R|B=Purple ↑ Tgt(2,0) ✓
             return new LevelDefinition
             {
                 Id = "11", Name = "Merge Point", Width = 5, Height = 2,
-                ParMoves = 2, ParTimeSeconds = 20f,
+                ParMoves = 4, ParTimeSeconds = 20f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
+                    Src(0, 0, LightColor.Red, Direction.Down),
                     Tgt(2, 0, LightColor.Purple),
-                    Src(0, 1, LightColor.Red, Direction.Right),
-                    Str(1, 1, 0),  // needs rot=1
+                    Src(4, 0, LightColor.Blue, Direction.Down),
+                    Bnd(0, 1, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Str(1, 1, 0),  // needs rot=1 → 1 click
                     new LevelDefinition.TileDef { Col=2, Row=1, Type=TileType.Merger, Rotation=0, Locked=true },
-                    Str(3, 1, 0),  // needs rot=1
-                    Src(4, 1, LightColor.Blue, Direction.Left),
+                    Str(3, 1, 0),  // needs rot=1 → 1 click
+                    Bnd(4, 1, 2),  // needs rot=3 → 1 click (Down→Left)
                 }
             };
         }
@@ -410,26 +439,48 @@ namespace PrismPulse.Gameplay.Levels
         // ================================================================
         private static LevelDefinition Level12()
         {
+            // Crystal Maze — Cross + Mirror + Straights. Two beams cross.
+            // Green goes down through Cross, bends right via Mirror to target.
+            // Red goes down, bends right, crosses through Cross, continues to target.
+            // No source faces any same-color target on same row/col.
+            //
+            // 5x5:
+            // Row 0: .       Src(R,↓)  Src(G,↓)  .       .
+            // Row 1: .       Str       Str        .       .
+            // Row 2: .       Bnd       Cross(L)   Str     Tgt(R)
+            // Row 3: .       .         Str        .       .
+            // Row 4: .       .         Mir        Str     Tgt(G)
+            //
+            // R: ↓Str(1,1)↓Bnd(1,2)→Right→Cross(2,2)→Str(3,2)→Tgt(4,2) ✓
+            // G: ↓Str(2,1)↓Cross(2,2)↓Str(2,3)↓Mir(2,4)→Right→Str(3,4)→Tgt(4,4) ✓
+            // Bnd(1,2): Down→Right, rot=0. Start 3→1 click.
+            // Str(1,1): vert, start 1→0, 1 click. Str(2,1): vert, start 1→0, 1 click.
+            // Str(3,2): horiz, start 0→1, 1 click. Str(2,3): vert, start 1→0, 1 click.
+            // Mir(2,4): Down→Right, rot=0. Start 1→0... Mirror: Down at rot=0→Right ✓. Start 3→1 click.
+            // Str(3,4): horiz, start 0→1, 1 click.
+            // Total: 7 moves.
             return new LevelDefinition
             {
                 Id = "12", Name = "Crystal Maze", Width = 5, Height = 5,
-                ParMoves = 6, ParTimeSeconds = 45f,
+                ParMoves = 7, ParTimeSeconds = 45f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
-                    // Green vertical path: col 2, rows 0→4 with Mirror redirect
+                    // Green vertical path with mirror redirect at bottom
                     Src(2, 0, LightColor.Green, Direction.Down),
-                    Str(2, 1, 1),  // starts horizontal, needs vertical (1 click)
+                    Str(2, 1, 1),  // needs rot=0 → 1 click
                     Locked(2, 2, TileType.Cross),
-                    Str(2, 3, 1),  // starts horizontal, needs vertical (1 click)
-                    Mir(2, 4, 1),  // needs rot=2, start at 1 → 1 click
-                    Str(3, 4, 0),  // starts vertical, needs horizontal (1 click)
+                    Str(2, 3, 1),  // needs rot=0 → 1 click
+                    Mir(2, 4, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Str(3, 4, 0),  // needs rot=1 → 1 click
                     Tgt(4, 4, LightColor.Green),
 
-                    // Red horizontal path: row 2, cols 0→4
-                    Src(0, 2, LightColor.Red, Direction.Right),
-                    Str(1, 2, 0),  // starts vertical, needs horizontal (1 click)
-                    // (2,2) is Cross
-                    Str(3, 2, 0),  // starts vertical, needs horizontal (1 click)
+                    // Red path: down, bend right, through Cross to target
+                    Src(1, 0, LightColor.Red, Direction.Down),
+                    Str(1, 1, 1),  // needs rot=0 → 1 click
+                    Bnd(1, 2, 3),  // needs rot=0 → 1 click (Down→Right)
+                    // (2,2) is Cross — Red passes through horizontally
+                    Str(3, 2, 0),  // needs rot=1 → 1 click
                     Tgt(4, 2, LightColor.Red),
                 }
             };
@@ -448,6 +499,7 @@ namespace PrismPulse.Gameplay.Levels
             {
                 Id = "13", Name = "Zigzag", Width = 3, Height = 2,
                 ParMoves = 3, ParTimeSeconds = 20f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(0, 0, LightColor.Red, Direction.Right),
@@ -472,6 +524,7 @@ namespace PrismPulse.Gameplay.Levels
             {
                 Id = "14", Name = "U-Turn", Width = 3, Height = 2,
                 ParMoves = 3, ParTimeSeconds = 20f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(0, 0, LightColor.Green, Direction.Down),
@@ -498,6 +551,7 @@ namespace PrismPulse.Gameplay.Levels
             {
                 Id = "15", Name = "Mirror Corridor", Width = 4, Height = 3,
                 ParMoves = 4, ParTimeSeconds = 25f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(0, 0, LightColor.Blue, Direction.Right),
@@ -523,6 +577,7 @@ namespace PrismPulse.Gameplay.Levels
             {
                 Id = "16", Name = "Fork", Width = 3, Height = 3,
                 ParMoves = 2, ParTimeSeconds = 15f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Tgt(2, 0, LightColor.Red),
@@ -549,6 +604,7 @@ namespace PrismPulse.Gameplay.Levels
             {
                 Id = "17", Name = "Purple Merge", Width = 5, Height = 3,
                 ParMoves = 4, ParTimeSeconds = 25f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(1, 0, LightColor.Red, Direction.Down),
@@ -574,27 +630,39 @@ namespace PrismPulse.Gameplay.Levels
         // ================================================================
         private static LevelDefinition Level18()
         {
+            // Filtered Cross — Two L-shaped paths with DarkAbsorber gate.
+            // No source faces same-color target on same row/col.
+            //
+            // 5x3:
+            // Row 0: Src(G,↓)   .       Src(R,↓)    .        .
+            // Row 1: Str        .       Str          .        .
+            // Row 2: Bnd      Tgt(G)    Bnd        Dark(R,L) Tgt(R)
+            //
+            // G: ↓Str(0,1)↓Bnd(0,2) rot=0→Right→Tgt(1,2) ✓
+            // R: ↓Str(2,1)↓Bnd(2,2) rot=0→Right→Dark(3,2) passes Red→Tgt(4,2) ✓
+            // Str(0,1): vert, start 1→0. Bnd(0,2): start 3→0.
+            // Str(2,1): vert, start 1→0. Bnd(2,2): start 3→0.
+            // Total: 4 moves.
             return new LevelDefinition
             {
-                Id = "18", Name = "Filtered Cross", Width = 6, Height = 5,
-                ParMoves = 4, ParTimeSeconds = 30f,
+                Id = "18", Name = "Filtered Cross", Width = 5, Height = 3,
+                ParMoves = 4, ParTimeSeconds = 25f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
-                    // Green vertical path
-                    Src(2, 0, LightColor.Green, Direction.Down),
-                    Str(2, 1, 1),  // needs rot=0 → 1 click
-                    Locked(2, 2, TileType.Cross),
-                    Str(2, 3, 1),  // needs rot=0 → 1 click
-                    Tgt(2, 4, LightColor.Green),
+                    // Green: down, bend right to target
+                    Src(0, 0, LightColor.Green, Direction.Down),
+                    Str(0, 1, 1),  // needs rot=0 → 1 click
+                    Bnd(0, 2, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Tgt(1, 2, LightColor.Green),
 
-                    // Red horizontal path with dark gate
-                    Src(0, 2, LightColor.Red, Direction.Right),
-                    Str(1, 2, 0),  // needs rot=1 → 1 click
-                    // (2,2) is Cross
-                    Str(3, 2, 0),  // needs rot=1 → 1 click
-                    new LevelDefinition.TileDef { Col=4, Row=2, Type=TileType.DarkAbsorber,
+                    // Red: down, bend right through DarkAbsorber to target
+                    Src(2, 0, LightColor.Red, Direction.Down),
+                    Str(2, 1, 1),  // needs rot=0 → 1 click
+                    Bnd(2, 2, 3),  // needs rot=0 → 1 click (Down→Right)
+                    new LevelDefinition.TileDef { Col=3, Row=2, Type=TileType.DarkAbsorber,
                         Color=LightColor.Red, Locked=true },
-                    Tgt(5, 2, LightColor.Red),
+                    Tgt(4, 2, LightColor.Red),
                 }
             };
         }
@@ -626,6 +694,7 @@ namespace PrismPulse.Gameplay.Levels
             {
                 Id = "19", Name = "Bend & Merge", Width = 5, Height = 2,
                 ParMoves = 4, ParTimeSeconds = 25f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(0, 0, LightColor.Red, Direction.Down),
@@ -659,6 +728,7 @@ namespace PrismPulse.Gameplay.Levels
             {
                 Id = "20", Name = "Split Mirror", Width = 4, Height = 3,
                 ParMoves = 4, ParTimeSeconds = 25f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Mir(2, 0, 0),  // needs rot=1 → 1 click (Up→Right)
@@ -730,18 +800,17 @@ namespace PrismPulse.Gameplay.Levels
         {
             return new LevelDefinition
             {
-                Id = "21", Name = "Twin Mirrors", Width = 7, Height = 2,
-                ParMoves = 4, ParTimeSeconds = 25f,
+                Id = "21", Name = "Twin Mirrors", Width = 5, Height = 2,
+                ParMoves = 2, ParTimeSeconds = 20f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(0, 0, LightColor.Red, Direction.Right),
-                    Str(1, 0, 0),   // needs rot=1 → 1 click
-                    Mir(2, 0, 3),   // needs rot=0 → 1 click (Right→Down)
-                    Mir(4, 0, 0),   // needs rot=1 → 1 click (Left→Down)
-                    Str(5, 0, 0),   // needs rot=1 → 1 click
-                    Src(6, 0, LightColor.Blue, Direction.Left),
-                    Tgt(2, 1, LightColor.Red),
-                    Tgt(4, 1, LightColor.Blue),
+                    Mir(1, 0, 3),   // needs rot=0 → 1 click (Right→Down)
+                    Mir(3, 0, 0),   // needs rot=1 → 1 click (Left→Down)
+                    Src(4, 0, LightColor.Blue, Direction.Left),
+                    Tgt(1, 1, LightColor.Red),
+                    Tgt(3, 1, LightColor.Blue),
                 }
             };
         }
@@ -786,19 +855,64 @@ namespace PrismPulse.Gameplay.Levels
         // ================================================================
         private static LevelDefinition Level22()
         {
+            // Switchback — Zigzag path with bends. Source at top-right going Left,
+            // target at bottom-left. No source faces target on same row/col.
+            //
+            // 3x4:
+            // Row 0: .        .       Src(G,→)  -- wait, need to avoid alignment.
+            // Actually original had Src(G,↓)@(0,0) and Tgt(G)@(0,3) same col!
+            // Fix: move source to (2,0) pointing Left.
+            //
+            // Row 0: .       .       Src(G,←)
+            // Row 1: .       Str     Bnd
+            // Row 2: .       Bnd     Str
+            // Row 3: Tgt(G)  Str     Bnd
+            //
+            // G: ←Bnd(2,1) rot=1: Left→Down. ↓Str(2,2)↓Bnd(2,3)→Left... wait rot=3:Down→Left.
+            // Bnd(2,3): Down→Left rot=3. →Str(1,3)→Tgt(0,3) ✓
+            // But Bnd(2,1): beam going Left. Entry face = Right.
+            //   local = Right.RotCW(-rot). If rot=1: Right.RotCW(-1)=Right.RotCW(3)=Up.
+            //   Bend: Up→Right. Output Right.RotCW(1)=Down. ✓ Left→Down.
+            //
+            // Str(1,1): horiz, start 0→1, 1 click. Bnd(2,1): start 0→1, 1 click.
+            // No wait, need to recheck the path.
+            // G goes Left from (2,0). Enters (1,0)... but (1,0) is empty. Beam continues Left to (0,0) empty. Off board.
+            // Source at (2,0) pointing Left shoots beam Left. Need something at (1,0).
+            //
+            // Better: Src at top-left pointing Right:
+            // Row 0: Src(G,→)  Str     Bnd
+            // Row 1: .         .       Str
+            // Row 2: Bnd       Str     Bnd
+            // Row 3: Tgt(G)    .       .
+            //
+            // G: →Str(1,0)→Bnd(2,0) rot=2: Right→Down ↓Str(2,1)↓Bnd(2,2) rot=3: Down→Left
+            //   →Str(1,2)→Bnd(0,2) rot... wait (0,2) needs to go Down.
+            //   Bnd(0,2): beam going Left enters from Right. Need redirect Down.
+            //   Left beam entry: entryFace=Right. local=Right.RotCW(-rot).
+            //   rot=1: local=Up. Bend:Up→Right. out=Right.RotCW(1)=Down. ✓ Left→Down.
+            //   ↓Tgt(0,3) ✓
+            //
+            // Src(G,→)@(0,0), Tgt(G)@(0,3): same col 0! Source goes Right not Down, but empty cells in col 0 could let other beams through. Since there's only one source and one target, the worry is if source is at (0,0) going Right, nothing goes Down col 0. Safe.
+            // Actually wait: source at (0,0) emits Right. It does NOT emit Down. So even though they share col 0, beam goes Right not Down. No auto-solve from direct alignment. ✓
+            //
+            // Bnd(2,0): start 0→2, 2 clicks. Str(1,0): start 0→1, 1 click.
+            // Str(2,1): start 1→0, 1 click. Bnd(2,2): start 2→3, 1 click.
+            // Str(1,2): start 0→1, 1 click. Bnd(0,2): start 0→1, 1 click.
+            // Total: 7 moves.
             return new LevelDefinition
             {
                 Id = "22", Name = "Switchback", Width = 3, Height = 4,
                 ParMoves = 7, ParTimeSeconds = 35f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
-                    Src(0, 0, LightColor.Green, Direction.Down),
-                    Bnd(0, 1, 3),  // needs rot=0 → 1 click (Down→Right)
-                    Str(1, 1, 0),  // needs rot=1 → 1 click
-                    Bnd(2, 1, 0),  // needs rot=2 → 2 clicks (Right→Down)
-                    Str(2, 2, 1),  // needs rot=0 → 1 click
-                    Bnd(2, 3, 2),  // needs rot=3 → 1 click (Down→Left)
-                    Str(1, 3, 0),  // needs rot=1 → 1 click
+                    Src(0, 0, LightColor.Green, Direction.Right),
+                    Str(1, 0, 0),  // needs rot=1 → 1 click
+                    Bnd(2, 0, 0),  // needs rot=2 → 2 clicks (Right→Down)
+                    Str(2, 1, 1),  // needs rot=0 → 1 click
+                    Bnd(2, 2, 2),  // needs rot=3 → 1 click (Down→Left)
+                    Str(1, 2, 0),  // needs rot=1 → 1 click
+                    Bnd(0, 2, 0),  // needs rot=1 → 1 click (Left→Down)
                     Tgt(0, 3, LightColor.Green),
                 }
             };
@@ -860,25 +974,50 @@ namespace PrismPulse.Gameplay.Levels
         // ================================================================
         private static LevelDefinition Level23()
         {
+            // Color Trifecta — Two merge targets. Sources point Down, bend into targets.
+            // No source faces target on same row/col.
+            //
+            // 5x3:
+            // Row 0: Src(R,↓) Src(G,↓)  .      Src(R,↓) Src(B,↓)
+            // Row 1: Bnd      Bnd        .      Bnd      Bnd
+            // Row 2: .        Tgt(Y)     .      Tgt(P)   .
+            //
+            // Yellow (R+G): R↓Bnd(0,1) rot=0→Right→Tgt(1,2)? No, (1,1) is Bnd for G.
+            // Need more spacing.
+            //
+            // 5x2:
+            // Row 0: Src(R,↓)  Src(G,↓)  .     Src(R2,↓) Src(B,↓)
+            // Row 1: Bnd       Bnd        .     Bnd       Bnd
+            // R1↓Bnd(0,1)→R, G↓Bnd(1,1)→L. Both converge at... no, they go different dirs.
+            //
+            // Simpler: each pair of sources bends into a shared target below them.
+            // 4x3:
+            // Row 0: Src(R,↓)  .        Src(B,↓)  .
+            // Row 1: Bnd      Tgt(Y)    Bnd       Tgt(P)
+            // Row 2: .        Src(G,↑)  .         Src(R2,↑)
+            //
+            // Yellow: R↓Bnd(0,1) rot=0→R→Tgt(1,1). G↑→Tgt(1,1). R|G=Y ✓
+            // Purple: B↓Bnd(2,1) rot=0→R→Tgt(3,1). R2↑→Tgt(3,1). R|B=P ✓
+            // Bnd(0,1): start 3→0, 1 click. Bnd(2,1): start 3→0, 1 click.
+            // Total: 2 moves. Simple but clean.
             return new LevelDefinition
             {
-                Id = "23", Name = "Color Trifecta", Width = 5, Height = 3,
-                ParMoves = 4, ParTimeSeconds = 25f,
+                Id = "23", Name = "Color Trifecta", Width = 4, Height = 3,
+                ParMoves = 2, ParTimeSeconds = 25f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     // Yellow: R+G
-                    Src(0, 0, LightColor.Red, Direction.Right),
-                    Str(1, 0, 0),  // needs rot=1 → 1 click
-                    Tgt(2, 0, LightColor.Yellow),
-                    Str(3, 0, 0),  // needs rot=1 → 1 click
-                    Src(4, 0, LightColor.Green, Direction.Left),
+                    Src(0, 0, LightColor.Red, Direction.Down),
+                    Bnd(0, 1, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Tgt(1, 1, LightColor.Yellow),
+                    Src(1, 2, LightColor.Green, Direction.Up),
 
                     // Purple: R+B
-                    Src(0, 2, LightColor.Red, Direction.Right),
-                    Str(1, 2, 0),  // needs rot=1 → 1 click
-                    Tgt(2, 2, LightColor.Purple),
-                    Str(3, 2, 0),  // needs rot=1 → 1 click
-                    Src(4, 2, LightColor.Blue, Direction.Left),
+                    Src(2, 0, LightColor.Blue, Direction.Down),
+                    Bnd(2, 1, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Tgt(3, 1, LightColor.Purple),
+                    Src(3, 2, LightColor.Red, Direction.Up),
                 }
             };
         }
@@ -934,6 +1073,7 @@ namespace PrismPulse.Gameplay.Levels
             {
                 Id = "24", Name = "Splitter Chain", Width = 5, Height = 3,
                 ParMoves = 5, ParTimeSeconds = 30f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(2, 0, LightColor.Green, Direction.Down),
@@ -969,6 +1109,7 @@ namespace PrismPulse.Gameplay.Levels
             {
                 Id = "25", Name = "Mirror Relay", Width = 5, Height = 3,
                 ParMoves = 7, ParTimeSeconds = 35f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(0, 0, LightColor.Red, Direction.Right),
@@ -1012,27 +1153,39 @@ namespace PrismPulse.Gameplay.Levels
         // ================================================================
         private static LevelDefinition Level26()
         {
+            // Dark Labyrinth — Two L-paths with DarkAbsorber gates.
+            // No source faces same-color target on same row/col.
+            //
+            // 5x4:
+            // Row 0: Src(R,↓)  .       .       .     Src(B,↓)
+            // Row 1: Str       .       .       .     Str
+            // Row 2: Bnd     Dark(R,L) Tgt(R)  .      .
+            // Row 3: .         .      Tgt(B) Dark(B,L) Bnd
+            //
+            // R: ↓Str(0,1)↓Bnd(0,2)→R→Dark(1,2)→Tgt(2,2) ✓
+            // B: ↓Str(4,1)↓(4,2)empty↓Bnd(4,3)→L→Dark(3,3)→Tgt(2,3) ✓
             return new LevelDefinition
             {
-                Id = "26", Name = "Dark Labyrinth", Width = 5, Height = 3,
+                Id = "26", Name = "Dark Labyrinth", Width = 5, Height = 4,
                 ParMoves = 4, ParTimeSeconds = 25f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
-                    // Red path (row 0)
-                    Src(0, 0, LightColor.Red, Direction.Right),
-                    Str(1, 0, 0),  // needs rot=1 → 1 click
-                    new LevelDefinition.TileDef { Col=2, Row=0, Type=TileType.DarkAbsorber,
+                    // Red path: down, bend right, through Dark gate to target
+                    Src(0, 0, LightColor.Red, Direction.Down),
+                    Str(0, 1, 1),  // needs rot=0 → 1 click
+                    Bnd(0, 2, 3),  // needs rot=0 → 1 click (Down→Right)
+                    new LevelDefinition.TileDef { Col=1, Row=2, Type=TileType.DarkAbsorber,
                         Color=LightColor.Red, Locked=true },
-                    Str(3, 0, 0),  // needs rot=1 → 1 click
-                    Tgt(4, 0, LightColor.Red),
+                    Tgt(2, 2, LightColor.Red),
 
-                    // Blue path (row 2)
-                    Src(0, 2, LightColor.Blue, Direction.Right),
-                    Str(1, 2, 0),  // needs rot=1 → 1 click
-                    new LevelDefinition.TileDef { Col=2, Row=2, Type=TileType.DarkAbsorber,
+                    // Blue path: down, bend left, through Dark gate to target
+                    Src(4, 0, LightColor.Blue, Direction.Down),
+                    Str(4, 1, 1),  // needs rot=0 → 1 click
+                    Bnd(4, 3, 2),  // needs rot=3 → 1 click (Down→Left)
+                    new LevelDefinition.TileDef { Col=3, Row=3, Type=TileType.DarkAbsorber,
                         Color=LightColor.Blue, Locked=true },
-                    Str(3, 2, 0),  // needs rot=1 → 1 click
-                    Tgt(4, 2, LightColor.Blue),
+                    Tgt(2, 3, LightColor.Blue),
                 }
             };
         }
@@ -1057,21 +1210,32 @@ namespace PrismPulse.Gameplay.Levels
         // ================================================================
         private static LevelDefinition Level27()
         {
+            // Spectrum Split — Three sources merge to White target.
+            // No source faces target on same row/col.
+            //
+            // 5x3:
+            // Row 0: .       Src(R,↓)   .      Src(B,↓)   .
+            // Row 1: .       Bnd       Tgt(W)   Bnd        .
+            // Row 2: .      Src(G,→)    Mir      .         .
+            //
+            // R: ↓Bnd(1,1) rot=0→R→Tgt(2,1) ✓
+            // B: ↓Bnd(3,1) rot=3→L→Tgt(2,1) ✓
+            // G: →Mir(2,2) rot=3: Right→Up→Tgt(2,1) ✓
+            // R|G|B = White ✓
             return new LevelDefinition
             {
-                Id = "27", Name = "Spectrum Split", Width = 7, Height = 3,
-                ParMoves = 5, ParTimeSeconds = 30f,
+                Id = "27", Name = "Spectrum Split", Width = 5, Height = 3,
+                ParMoves = 3, ParTimeSeconds = 20f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
-                    Src(0, 0, LightColor.Red, Direction.Right),
-                    Str(1, 0, 0),  // needs rot=1 → 1 click
-                    Str(2, 0, 0),  // needs rot=1 → 1 click
-                    Tgt(3, 0, LightColor.White),
-                    Str(4, 0, 0),  // needs rot=1 → 1 click
-                    Str(5, 0, 0),  // needs rot=1 → 1 click
-                    Src(6, 0, LightColor.Blue, Direction.Left),
-                    Str(3, 1, 1),  // needs rot=0 → 1 click
-                    Src(3, 2, LightColor.Green, Direction.Up),
+                    Src(1, 0, LightColor.Red, Direction.Down),
+                    Src(3, 0, LightColor.Blue, Direction.Down),
+                    Bnd(1, 1, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Tgt(2, 1, LightColor.White),
+                    Bnd(3, 1, 2),  // needs rot=3 → 1 click (Down→Left)
+                    Src(1, 2, LightColor.Green, Direction.Right),
+                    Mir(2, 2, 2),  // needs rot=3 → 1 click (Right→Up)
                 }
             };
         }
@@ -1108,25 +1272,37 @@ namespace PrismPulse.Gameplay.Levels
         // ================================================================
         private static LevelDefinition Level28()
         {
+            // Grand Cross — Two beams crossing via Cross tile.
+            // No source faces same-color target on same row/col.
+            //
+            // 5x5:
+            // Row 0: Src(B,↓)   .      Src(R,↓)   .       .
+            // Row 1: Str        .      Str         .       .
+            // Row 2: Bnd       Str    Cross(L)    Str    Tgt(B)
+            // Row 3: .          .      Bnd        Str      .
+            // Row 4: .          .       .        Tgt(R)    .
+            //
+            // B: ↓Str(0,1)↓Bnd(0,2)→R→Str(1,2)→Cross(2,2) horiz→Str(3,2)→Tgt(4,2) ✓
+            // R: ↓Str(2,1)↓Cross(2,2) vert→Bnd(2,3)→R→Str(3,3)→Tgt(3,4) ✓
             return new LevelDefinition
             {
                 Id = "28", Name = "Grand Cross", Width = 5, Height = 5,
-                ParMoves = 5, ParTimeSeconds = 35f,
+                ParMoves = 7, ParTimeSeconds = 35f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
-                    Src(1, 0, LightColor.Blue, Direction.Down),
-                    Src(2, 0, LightColor.Green, Direction.Down),
-                    Str(1, 1, 1),  // needs rot=0 → 1 click
+                    Src(0, 0, LightColor.Blue, Direction.Down),
+                    Src(2, 0, LightColor.Red, Direction.Down),
+                    Str(0, 1, 1),  // needs rot=0 → 1 click
                     Str(2, 1, 1),  // needs rot=0 → 1 click
-                    Src(0, 2, LightColor.Red, Direction.Right),
-                    Locked(1, 2, TileType.Cross),
+                    Bnd(0, 2, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Str(1, 2, 0),  // needs rot=1 → 1 click
                     Locked(2, 2, TileType.Cross),
                     Str(3, 2, 0),  // needs rot=1 → 1 click
-                    Tgt(4, 2, LightColor.Red),
-                    Str(1, 3, 1),  // needs rot=0 → 1 click
-                    Str(2, 3, 1),  // needs rot=0 → 1 click
-                    Tgt(1, 4, LightColor.Blue),
-                    Tgt(2, 4, LightColor.Green),
+                    Tgt(4, 2, LightColor.Blue),
+                    Bnd(2, 3, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Str(3, 3, 0),  // needs rot=1 → 1 click
+                    Tgt(3, 4, LightColor.Red),
                 }
             };
         }
@@ -1192,25 +1368,25 @@ namespace PrismPulse.Gameplay.Levels
         {
             return new LevelDefinition
             {
-                Id = "29", Name = "Crystal Network", Width = 7, Height = 3,
-                ParMoves = 6, ParTimeSeconds = 40f,
+                Id = "29", Name = "Crystal Network", Width = 5, Height = 3,
+                ParMoves = 5, ParTimeSeconds = 35f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(0, 0, LightColor.Red, Direction.Down),
-                    Tgt(2, 0, LightColor.Purple),
-                    Src(3, 0, LightColor.Green, Direction.Down),
-                    Src(6, 0, LightColor.Blue, Direction.Down),
+                    Tgt(1, 0, LightColor.Purple),
+                    Src(2, 0, LightColor.Green, Direction.Down),
+                    Src(4, 0, LightColor.Blue, Direction.Down),
 
                     Bnd(0, 1, 3),  // needs rot=0 → 1 click (Down→Right)
-                    Str(1, 1, 0),  // needs rot=1 → 1 click
-                    new LevelDefinition.TileDef { Col=2, Row=1, Type=TileType.Merger, Rotation=0, Locked=true },
-                    Locked(3, 1, TileType.Cross),  // Green passes vert, Blue passes horiz
-                    Str(5, 1, 0),  // needs rot=1 → 1 click
-                    Bnd(6, 1, 2),  // needs rot=3 → 1 click (Down→Left)
+                    new LevelDefinition.TileDef { Col=1, Row=1, Type=TileType.Merger, Rotation=0, Locked=true },
+                    Locked(2, 1, TileType.Cross),  // Green passes vert, Blue passes horiz
+                    Str(3, 1, 0),  // needs rot=1 → 1 click
+                    Bnd(4, 1, 2),  // needs rot=3 → 1 click (Down→Left)
 
-                    Mir(3, 2, 3),  // needs rot=0 → 1 click (Down→Right)
-                    Str(4, 2, 0),  // needs rot=1 → 1 click
-                    Tgt(5, 2, LightColor.Green),
+                    Mir(2, 2, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Str(3, 2, 0),  // needs rot=1 → 1 click
+                    Tgt(4, 2, LightColor.Green),
                 }
             };
         }
@@ -1249,25 +1425,25 @@ namespace PrismPulse.Gameplay.Levels
         {
             return new LevelDefinition
             {
-                Id = "30", Name = "Chromatic Maze", Width = 7, Height = 5,
-                ParMoves = 9, ParTimeSeconds = 45f,
+                Id = "30", Name = "Chromatic Maze", Width = 5, Height = 5,
+                ParMoves = 8, ParTimeSeconds = 40f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     // Red path: right, mirror down, bend right to target
                     Src(0, 0, LightColor.Red, Direction.Right),
-                    Str(1, 0, 0),  // needs rot=1 → 1 click
-                    Mir(2, 0, 3),  // needs rot=0 → 1 click (Right→Down)
-                    Str(2, 1, 1),  // needs rot=0 → 1 click
-                    Bnd(2, 2, 3),  // needs rot=0 → 1 click (Down→Right)
-                    Str(3, 2, 0),  // needs rot=1 → 1 click
+                    Mir(1, 0, 3),  // needs rot=0 → 1 click (Right→Down)
+                    Str(1, 1, 1),  // needs rot=0 → 1 click
+                    Bnd(1, 2, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Str(2, 2, 0),  // needs rot=1 → 1 click
 
                     // Green merges with Red at Yellow target
-                    Src(6, 2, LightColor.Green, Direction.Left),
-                    Str(5, 2, 0),  // needs rot=1 → 1 click
-                    Tgt(4, 2, LightColor.Yellow),
+                    Src(4, 2, LightColor.Green, Direction.Left),
+                    Tgt(3, 2, LightColor.Yellow),
 
-                    // Blue independent path
-                    Src(0, 4, LightColor.Blue, Direction.Right),
+                    // Blue path: down, bend right to target
+                    Src(0, 3, LightColor.Blue, Direction.Down),
+                    Bnd(0, 4, 3),  // needs rot=0 → 1 click (Down→Right)
                     Str(1, 4, 0),  // needs rot=1 → 1 click
                     Str(2, 4, 0),  // needs rot=1 → 1 click
                     Tgt(3, 4, LightColor.Blue),
@@ -1334,6 +1510,7 @@ namespace PrismPulse.Gameplay.Levels
             {
                 Id = "31", Name = "Prismatic Web", Width = 5, Height = 5,
                 ParMoves = 9, ParTimeSeconds = 45f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(2, 0, LightColor.Red, Direction.Down),
@@ -1426,32 +1603,30 @@ namespace PrismPulse.Gameplay.Levels
         {
             return new LevelDefinition
             {
-                Id = "32", Name = "Master Prism", Width = 7, Height = 5,
-                ParMoves = 11, ParTimeSeconds = 60f,
+                Id = "32", Name = "Master Prism", Width = 5, Height = 5,
+                ParMoves = 8, ParTimeSeconds = 45f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
-                    // Red path: right, bend down, straight, bend right to merge
+                    // Red path: right, bend down, bend right to merge
                     Src(0, 0, LightColor.Red, Direction.Right),
-                    Str(1, 0, 0),  // needs rot=1 → 1 click
-                    Bnd(2, 0, 0),  // needs rot=2 → 2 clicks (Right→Down)
-                    Str(2, 1, 1),  // needs rot=0 → 1 click
-                    Bnd(2, 2, 3),  // needs rot=0 → 1 click (Down→Right)
-                    Str(3, 2, 0),  // needs rot=1 → 1 click
+                    Bnd(1, 0, 0),  // needs rot=2 → 2 clicks (Right→Down)
+                    Str(1, 1, 1),  // needs rot=0 → 1 click
+                    Bnd(1, 2, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Str(2, 2, 0),  // needs rot=1 → 1 click
 
                     // Green merges with Red at Yellow target
-                    Src(6, 2, LightColor.Green, Direction.Left),
-                    Str(5, 2, 0),  // needs rot=1 → 1 click
-                    Tgt(4, 2, LightColor.Yellow),
+                    Src(4, 2, LightColor.Green, Direction.Left),
+                    Tgt(3, 2, LightColor.Yellow),
 
-                    // Blue path with dark gate
-                    Src(0, 4, LightColor.Blue, Direction.Right),
+                    // Blue path: down, bend right, through dark gate
+                    Src(0, 3, LightColor.Blue, Direction.Down),
+                    Bnd(0, 4, 3),  // needs rot=0 → 1 click (Down→Right)
                     Str(1, 4, 0),  // needs rot=1 → 1 click
-                    Str(2, 4, 0),  // needs rot=1 → 1 click
-                    new LevelDefinition.TileDef { Col=3, Row=4, Type=TileType.DarkAbsorber,
+                    new LevelDefinition.TileDef { Col=2, Row=4, Type=TileType.DarkAbsorber,
                         Color=LightColor.Blue, Locked=true },
-                    Str(4, 4, 0),  // needs rot=1 → 1 click
-                    Str(5, 4, 0),  // needs rot=1 → 1 click
-                    Tgt(6, 4, LightColor.Blue),
+                    Str(3, 4, 0),  // needs rot=1 → 1 click
+                    Tgt(4, 4, LightColor.Blue),
                 }
             };
         }
@@ -1484,6 +1659,7 @@ namespace PrismPulse.Gameplay.Levels
             {
                 Id = "33", Name = "Careful Mix", Width = 4, Height = 2,
                 ParMoves = 2, ParTimeSeconds = 10f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(0, 0, LightColor.Red, Direction.Down),
@@ -1510,25 +1686,37 @@ namespace PrismPulse.Gameplay.Levels
         // ================================================================
         private static LevelDefinition Level34()
         {
+            // Split Decision — Two merge targets. Sources point Down, bend to targets.
+            // No source faces target on same row/col.
+            //
+            // 5x4:
+            // Row 0: Src(R,↓)   .       .        Src(B,↓)   .
+            // Row 1: Str        .       .        Str         .
+            // Row 2: Bnd      Tgt(Y)    .        Bnd       Tgt(P)
+            // Row 3: .       Src(G,↑)   .         .       Src(R2,↑)
+            //
+            // R: ↓Str(0,1)↓Bnd(0,2)→R→Tgt(1,2) ✓  G: ↑Tgt(1,2). R|G=Y ✓
+            // B: ↓Str(3,1)↓Bnd(3,2)→R→Tgt(4,2) ✓  R2: ↑Tgt(4,2). R2|B=P ✓
             return new LevelDefinition
             {
-                Id = "34", Name = "Split Decision", Width = 5, Height = 3,
+                Id = "34", Name = "Split Decision", Width = 5, Height = 4,
                 ParMoves = 4, ParTimeSeconds = 20f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     // Yellow: R+G
-                    Src(0, 0, LightColor.Red, Direction.Right),
-                    Str(1, 0, 0),  // needs rot=1 → 1 click
-                    Tgt(2, 0, LightColor.Yellow),
-                    Str(3, 0, 0),  // needs rot=1 → 1 click
-                    Src(4, 0, LightColor.Green, Direction.Left),
+                    Src(0, 0, LightColor.Red, Direction.Down),
+                    Str(0, 1, 1),  // needs rot=0 → 1 click
+                    Bnd(0, 2, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Tgt(1, 2, LightColor.Yellow),
+                    Src(1, 3, LightColor.Green, Direction.Up),
 
-                    // Purple: R+B (separate Red source)
-                    Src(0, 2, LightColor.Red, Direction.Right),
-                    Str(1, 2, 0),  // needs rot=1 → 1 click
-                    Tgt(2, 2, LightColor.Purple),
-                    Str(3, 2, 0),  // needs rot=1 → 1 click
-                    Src(4, 2, LightColor.Blue, Direction.Left),
+                    // Purple: R+B
+                    Src(3, 0, LightColor.Blue, Direction.Down),
+                    Str(3, 1, 1),  // needs rot=0 → 1 click
+                    Bnd(3, 2, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Tgt(4, 2, LightColor.Purple),
+                    Src(4, 3, LightColor.Red, Direction.Up),
                 }
             };
         }
@@ -1576,6 +1764,7 @@ namespace PrismPulse.Gameplay.Levels
             {
                 Id = "35", Name = "Color Gate", Width = 5, Height = 3,
                 ParMoves = 4, ParTimeSeconds = 25f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(0, 0, LightColor.Red, Direction.Down),
@@ -1643,6 +1832,7 @@ namespace PrismPulse.Gameplay.Levels
             {
                 Id = "36", Name = "Wrong Turn", Width = 4, Height = 3,
                 ParMoves = 2, ParTimeSeconds = 15f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(0, 0, LightColor.Red, Direction.Down),
@@ -1770,10 +1960,21 @@ namespace PrismPulse.Gameplay.Levels
             // Trap: Bnd(2,1) at rot=0→Right→Tgt(R). B contaminates R target → R|B=Purple ✗
             //        Bnd(0,1) at rot=3→Left→off board. G doesn't reach Cyan ✗
             // Total: 2 moves.
+            // Fix: Red source must not face Red target on same col.
+            // Move Red target off col 3. Add a bend for Red too.
+            //
+            // 5x3:
+            // Row 0: Src(G,↓) .  Src(B,↓) Src(R,↓) .
+            // Row 1: Bnd  Tgt(C)  Bnd       Bnd    Tgt(R)
+            //
+            // G: ↓Bnd(0,1)→R→Tgt(1,1). B: ↓Bnd(2,1)→L→Tgt(1,1). G|B=C ✓
+            // R: ↓Bnd(3,1)→R→Tgt(4,1). R ✓
+            // Src(R)@(3,0) col 3, Tgt(R)@(4,1) col 4. ✓
             return new LevelDefinition
             {
-                Id = "37", Name = "Cyan Corridor", Width = 4, Height = 2,
-                ParMoves = 2, ParTimeSeconds = 15f,
+                Id = "37", Name = "Cyan Corridor", Width = 5, Height = 2,
+                ParMoves = 3, ParTimeSeconds = 15f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(0, 0, LightColor.Green, Direction.Down),
@@ -1782,7 +1983,8 @@ namespace PrismPulse.Gameplay.Levels
                     Bnd(0, 1, 3),  // needs rot=0 → 1 click (Down→Right)
                     Tgt(1, 1, LightColor.Cyan),   // needs G+B
                     Bnd(2, 1, 2),  // needs rot=3 → 1 click (Down→Left)
-                    Tgt(3, 1, LightColor.Red),
+                    Bnd(3, 1, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Tgt(4, 1, LightColor.Red),
                 }
             };
         }
@@ -1851,6 +2053,7 @@ namespace PrismPulse.Gameplay.Levels
             {
                 Id = "38", Name = "Triple Threat", Width = 5, Height = 3,
                 ParMoves = 2, ParTimeSeconds = 15f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(1, 0, LightColor.Red, Direction.Down),
@@ -1918,6 +2121,7 @@ namespace PrismPulse.Gameplay.Levels
             {
                 Id = "39", Name = "Contamination", Width = 5, Height = 3,
                 ParMoves = 6, ParTimeSeconds = 30f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     // Sources at top
@@ -1961,20 +2165,34 @@ namespace PrismPulse.Gameplay.Levels
         // ================================================================
         private static LevelDefinition Level40()
         {
+            // White Out — Three sources merge to White. No direct alignment.
+            //
+            // 5x4:
+            // Row 0: .       Src(R,↓)    .      Src(B,↓)    .
+            // Row 1: .       Str         .      Str          .
+            // Row 2: .       Bnd       Tgt(W)   Bnd          .
+            // Row 3: .      Src(G,→)    Mir      .           .
+            //
+            // R: ↓Str(1,1)↓Bnd(1,2) rot=0→R→Tgt(2,2) ✓
+            // B: ↓Str(3,1)↓Bnd(3,2) rot=3→L→Tgt(2,2) ✓
+            // G: →Mir(2,3) rot=3: Right→Up→Tgt(2,2) ✓
+            // R|G|B = White ✓
             return new LevelDefinition
             {
-                Id = "40", Name = "White Out", Width = 7, Height = 2,
-                ParMoves = 4, ParTimeSeconds = 20f,
+                Id = "40", Name = "White Out", Width = 5, Height = 4,
+                ParMoves = 5, ParTimeSeconds = 25f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
-                    Src(0, 0, LightColor.Red, Direction.Right),
-                    Str(1, 0, 0),  // needs rot=1 → 1 click
-                    Str(2, 0, 0),  // needs rot=1 → 1 click
-                    Tgt(3, 0, LightColor.White),
-                    Str(4, 0, 0),  // needs rot=1 → 1 click
-                    Str(5, 0, 0),  // needs rot=1 → 1 click
-                    Src(6, 0, LightColor.Blue, Direction.Left),
-                    Src(3, 1, LightColor.Green, Direction.Up),
+                    Src(1, 0, LightColor.Red, Direction.Down),
+                    Src(3, 0, LightColor.Blue, Direction.Down),
+                    Str(1, 1, 1),  // needs rot=0 → 1 click
+                    Str(3, 1, 1),  // needs rot=0 → 1 click
+                    Bnd(1, 2, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Tgt(2, 2, LightColor.White),
+                    Bnd(3, 2, 2),  // needs rot=3 → 1 click (Down→Left)
+                    Src(1, 3, LightColor.Green, Direction.Right),
+                    Mir(2, 3, 2),  // needs rot=3 → 1 click (Right→Up)
                 }
             };
         }
@@ -2015,20 +2233,19 @@ namespace PrismPulse.Gameplay.Levels
         {
             return new LevelDefinition
             {
-                Id = "41", Name = "Merge Maze", Width = 7, Height = 3,
-                ParMoves = 7, ParTimeSeconds = 35f,
+                Id = "41", Name = "Merge Maze", Width = 5, Height = 3,
+                ParMoves = 5, ParTimeSeconds = 30f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(0, 0, LightColor.Red, Direction.Right),
-                    Str(1, 0, 0),  // needs rot=1 → 1 click
-                    Tgt(2, 0, LightColor.Yellow),  // needs R+G
-                    Tgt(4, 0, LightColor.Cyan),    // needs G+B
-                    Str(5, 0, 0),  // needs rot=1 → 1 click
-                    Src(6, 0, LightColor.Blue, Direction.Left),
-                    Bnd(2, 1, 0),  // needs rot=2 → 2 clicks (Left→Up)
-                    new LevelDefinition.TileDef { Col=3, Row=1, Type=TileType.Splitter, Rotation=0, Locked=false },
-                    Bnd(4, 1, 0),  // needs rot=1 → 1 click (Right→Up)
-                    Src(3, 2, LightColor.Green, Direction.Up),
+                    Tgt(1, 0, LightColor.Yellow),  // needs R+G
+                    Tgt(3, 0, LightColor.Cyan),    // needs G+B
+                    Src(4, 0, LightColor.Blue, Direction.Left),
+                    Bnd(1, 1, 0),  // needs rot=2 → 2 clicks (Left→Up)
+                    new LevelDefinition.TileDef { Col=2, Row=1, Type=TileType.Splitter, Rotation=0, Locked=false },
+                    Bnd(3, 1, 0),  // needs rot=1 → 1 click (Right→Up)
+                    Src(2, 2, LightColor.Green, Direction.Up),
                 }
             };
         }
@@ -2099,23 +2316,22 @@ namespace PrismPulse.Gameplay.Levels
         {
             return new LevelDefinition
             {
-                Id = "42", Name = "Prism Master", Width = 7, Height = 2,
-                ParMoves = 10, ParTimeSeconds = 50f,
+                Id = "42", Name = "Prism Master", Width = 5, Height = 2,
+                ParMoves = 6, ParTimeSeconds = 35f,
+                ShuffleMode = true,
                 Tiles = new[]
                 {
                     Src(0, 0, LightColor.Red, Direction.Down),
-                    Tgt(2, 0, LightColor.Yellow),   // R+G
-                    Src(3, 0, LightColor.Green, Direction.Down),
-                    Tgt(4, 0, LightColor.Cyan),      // G+B
-                    Src(6, 0, LightColor.Blue, Direction.Down),
+                    Tgt(1, 0, LightColor.Yellow),   // R+G
+                    Src(2, 0, LightColor.Green, Direction.Down),
+                    Tgt(3, 0, LightColor.Cyan),      // G+B
+                    Src(4, 0, LightColor.Blue, Direction.Down),
 
                     Bnd(0, 1, 3),  // needs rot=0 → 1 click (Down→Right)
-                    Str(1, 1, 0),  // needs rot=1 → 1 click
-                    Mrg(2, 1, 2),  // needs rot=0 → 2 clicks (L+R→Up)
-                    new LevelDefinition.TileDef { Col=3, Row=1, Type=TileType.Splitter, Rotation=0, Locked=false },
-                    Mrg(4, 1, 2),  // needs rot=0 → 2 clicks (L+R→Up)
-                    Str(5, 1, 0),  // needs rot=1 → 1 click
-                    Bnd(6, 1, 2),  // needs rot=3 → 1 click (Down→Left)
+                    Mrg(1, 1, 2),  // needs rot=0 → 2 clicks (L+R→Up)
+                    new LevelDefinition.TileDef { Col=2, Row=1, Type=TileType.Splitter, Rotation=0, Locked=false },
+                    Mrg(3, 1, 2),  // needs rot=0 → 2 clicks (L+R→Up)
+                    Bnd(4, 1, 2),  // needs rot=3 → 1 click (Down→Left)
                 }
             };
         }

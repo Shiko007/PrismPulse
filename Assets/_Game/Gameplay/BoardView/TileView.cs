@@ -29,7 +29,11 @@ namespace PrismPulse.Gameplay.BoardView
         private TextMesh _colorLabel;
         private Tweener _glowTween;
 
-        public GridPosition GridPosition => _gridPosition;
+        public GridPosition GridPosition
+        {
+            get => _gridPosition;
+            set => _gridPosition = value;
+        }
 
         public void Initialize(GridPosition pos, TileState state)
         {
@@ -265,6 +269,16 @@ namespace PrismPulse.Gameplay.BoardView
             // Keep color-blind label upright regardless of tile rotation
             if (_colorLabel != null)
                 _colorLabel.transform.rotation = Quaternion.identity;
+        }
+
+        /// <summary>
+        /// Animate this tile moving to a new world position (for swap).
+        /// </summary>
+        public void AnimateSwapTo(Vector3 targetLocalPos, float duration = 0.2f, System.Action onComplete = null)
+        {
+            transform.DOLocalMove(targetLocalPos, duration)
+                .SetEase(Ease.OutQuad)
+                .OnComplete(() => onComplete?.Invoke());
         }
 
         /// <summary>
