@@ -1168,28 +1168,29 @@ namespace PrismPulse.Gameplay.Levels
         //
         //   Actually simpler: just add Green as a separate puzzle alongside.
         //   Row 0: Src(R,↓) .  Tgt(P)   Src(G,↓) .  .  Src(B,↓)
-        //   Row 1: Bnd  Str  Merger(L)  Str      .  Str  Bnd
+        //   Row 1: Bnd  Str  Merger(L)  Cross(L) .  Str  Bnd
         //   Row 2: .    .    .          Mir  Str  Tgt(G)  .
-        //   Green: ↓Str(3,1)↓Mir(3,2)→Str(4,2)→Tgt(5,2) ✓
-        //   Mirror: Down rot=0→Right. Start 3→1. ✓
+        //   R: ↓Bnd(0,1)→Str(1,1)→Merger(2,1)↑→Tgt(2,0) ✓
+        //   B: ↓Bnd(6,1)←Str(5,1)←(4,1)empty←Cross(3,1)←→Merger(2,1) ✓
+        //   Merger: R from Right + B from Left → Up = Purple ✓
+        //   G: ↓Cross(3,1)↓Mir(3,2)→Str(4,2)→Tgt(5,2) ✓
+        //   Cross at (3,1) lets Green pass vertically AND Blue pass horizontally.
         //
         //   Moves:
         //   Bnd(0,1): Down→Right, rot=0. Start 3→1.
         //   Str(1,1): horiz, start 0→1.
-        //   Merger(2,1): locked.
-        //   Str(3,1): vert, start 1→0, 1 click.
         //   Str(5,1): horiz, start 0→1.
         //   Bnd(6,1): Down→Left, rot=3. Start 2→1.
         //   Mir(3,2): Down→Right, rot=0. Start 3→1.
         //   Str(4,2): horiz, start 0→1.
-        //   Total: 8 moves. ✓
+        //   Total: 6 moves. ✓
         // ================================================================
         private static LevelDefinition Level29()
         {
             return new LevelDefinition
             {
                 Id = "29", Name = "Crystal Network", Width = 7, Height = 3,
-                ParMoves = 8, ParTimeSeconds = 45f,
+                ParMoves = 6, ParTimeSeconds = 40f,
                 Tiles = new[]
                 {
                     Src(0, 0, LightColor.Red, Direction.Down),
@@ -1200,7 +1201,7 @@ namespace PrismPulse.Gameplay.Levels
                     Bnd(0, 1, 3),  // needs rot=0 → 1 click (Down→Right)
                     Str(1, 1, 0),  // needs rot=1 → 1 click
                     new LevelDefinition.TileDef { Col=2, Row=1, Type=TileType.Merger, Rotation=0, Locked=true },
-                    Str(3, 1, 1),  // needs rot=0 → 1 click (vertical for Green)
+                    Locked(3, 1, TileType.Cross),  // Green passes vert, Blue passes horiz
                     Str(5, 1, 0),  // needs rot=1 → 1 click
                     Bnd(6, 1, 2),  // needs rot=3 → 1 click (Down→Left)
 
