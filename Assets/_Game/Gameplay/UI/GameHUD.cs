@@ -23,10 +23,8 @@ namespace PrismPulse.Gameplay.UI
         private int _parMoves;
         private float _parTime;
         private Button _undoButton;
-        private Button _hintButton;
 
         public System.Action OnUndo;
-        public System.Action OnHint;
 
         public void Initialize()
         {
@@ -70,11 +68,6 @@ namespace PrismPulse.Gameplay.UI
         public void SetUndoInteractable(bool interactable)
         {
             if (_undoButton != null) _undoButton.interactable = interactable;
-        }
-
-        public void SetHintInteractable(bool interactable)
-        {
-            if (_hintButton != null) _hintButton.interactable = interactable;
         }
 
         /// <summary>
@@ -178,17 +171,6 @@ namespace PrismPulse.Gameplay.UI
                 OnUndo?.Invoke();
             });
             _undoButton.interactable = false;
-
-            // Hint button — bottom right
-            _hintButton = CreateButton(safeRect, "Hint",
-                new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-20f, 20f),
-                new Vector2(160, 60), new Color(0.2f, 0.3f, 0.45f), 26);
-            _hintButton.onClick.AddListener(() =>
-            {
-                if (SoundManager.Instance != null) SoundManager.Instance.PlayButtonClick();
-                HapticFeedback.LightTap();
-                OnHint?.Invoke();
-            });
         }
 
         private static void ApplySafeArea(RectTransform rect, RectTransform canvasRect)

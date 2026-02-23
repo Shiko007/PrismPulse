@@ -19,6 +19,7 @@ namespace PrismPulse.Gameplay.BoardView
         private TileType _tileType;
         private LightColor _storedRequiredColor;
         private bool _isAnimating;
+        private bool _indicatorCreated;
         private MeshRenderer _meshRenderer;
         private MeshRenderer _indicatorRenderer;
 
@@ -127,14 +128,14 @@ namespace PrismPulse.Gameplay.BoardView
                     tileColor = LightColorMap.ToUnityColor(state.RequiredColor) * 0.25f;
                     tileColor.a = 1f;
                     indicatorColor = LightColorMap.ToUnityColor(state.RequiredColor) * 1.5f;
-                    if (_indicatorRenderer != null)
+                    if (!_indicatorCreated && _indicatorRenderer != null)
                         _indicatorRenderer.transform.localScale = new Vector3(3f, 0.6f, 1f);
                     break;
 
                 case TileType.DarkAbsorber:
                     tileColor = new Color(0.08f, 0.04f, 0.04f, 1f);
                     indicatorColor = new Color(0.8f, 0.15f, 0.15f) * 1.5f;
-                    if (_indicatorRenderer != null)
+                    if (!_indicatorCreated && _indicatorRenderer != null)
                         CreateDarkAbsorberIndicator();
                     break;
 
@@ -151,35 +152,35 @@ namespace PrismPulse.Gameplay.BoardView
                 case TileType.Cross:
                     tileColor = new Color(0.12f, 0.14f, 0.22f, 1f);
                     indicatorColor = new Color(0.5f, 0.7f, 1f) * 2f;
-                    if (_indicatorRenderer != null)
+                    if (!_indicatorCreated && _indicatorRenderer != null)
                         CreateCrossIndicator();
                     break;
 
                 case TileType.Bend:
                     tileColor = new Color(0.12f, 0.14f, 0.22f, 1f);
                     indicatorColor = new Color(0.5f, 0.7f, 1f) * 2f;
-                    if (_indicatorRenderer != null)
+                    if (!_indicatorCreated && _indicatorRenderer != null)
                         CreateBendIndicator();
                     break;
 
                 case TileType.Splitter:
                     tileColor = new Color(0.14f, 0.12f, 0.22f, 1f);
                     indicatorColor = new Color(0.7f, 0.5f, 1f) * 1.8f;
-                    if (_indicatorRenderer != null)
+                    if (!_indicatorCreated && _indicatorRenderer != null)
                         CreateSplitterIndicator();
                     break;
 
                 case TileType.Merger:
                     tileColor = new Color(0.14f, 0.12f, 0.22f, 1f);
                     indicatorColor = new Color(1f, 0.6f, 0.3f) * 1.8f;
-                    if (_indicatorRenderer != null)
+                    if (!_indicatorCreated && _indicatorRenderer != null)
                         CreateMergerIndicator();
                     break;
 
                 case TileType.Mirror:
                     tileColor = new Color(0.12f, 0.14f, 0.22f, 1f);
                     indicatorColor = new Color(0.9f, 0.9f, 1f) * 2f;
-                    if (_indicatorRenderer != null)
+                    if (!_indicatorCreated && _indicatorRenderer != null)
                         CreateMirrorIndicator();
                     break;
 
@@ -194,6 +195,7 @@ namespace PrismPulse.Gameplay.BoardView
                 _tileMat.SetColor(BaseColorId, tileColor);
 
             // Apply indicator color and visibility
+            _indicatorCreated = true;
             if (_indicatorRenderer != null)
             {
                 _indicatorRenderer.gameObject.SetActive(showIndicator);
@@ -227,7 +229,8 @@ namespace PrismPulse.Gameplay.BoardView
         /// </summary>
         public void AnimateRotation(int newRotation)
         {
-            if (_isAnimating) return;
+            // Kill any in-progress rotation so rapid taps/undos always apply
+            transform.DOKill();
             _isAnimating = true;
 
             float targetZ = -newRotation * 90f;
@@ -235,28 +238,6 @@ namespace PrismPulse.Gameplay.BoardView
             transform.DOLocalRotate(new Vector3(0f, 0f, targetZ), _rotateDuration)
                 .SetEase(_rotateEase)
                 .OnComplete(() => _isAnimating = false);
-        }
-
-        /// <summary>
-        /// Pulse animation to highlight this tile as a hint.
-        /// </summary>
-        public void AnimateHintPulse()
-        {
-            if (transform == null) return;
-            transform.DOComplete();
-            transform.DOPunchScale(Vector3.one * 0.15f, 0.4f, 4, 0.3f);
-
-            // Flash the tile bright briefly
-            if (_tileMat != null)
-            {
-                var originalColor = _tileMat.GetColor(BaseColorId);
-                _tileMat.SetColor(BaseColorId, Color.white * 2f);
-                DOTween.To(
-                    () => _tileMat.GetColor(BaseColorId),
-                    c => _tileMat.SetColor(BaseColorId, c),
-                    originalColor, 0.5f
-                ).SetEase(Ease.OutQuad);
-            }
         }
 
         private void OnDestroy()
@@ -348,16 +329,21 @@ namespace PrismPulse.Gameplay.BoardView
 
         private void CreateSplitterIndicator()
         {
-            // T-shape: vertical bar (full) + horizontal bar at bottom
+            // Two reflective bars back to back forming a triangle/chevron shape
             var existing = _indicatorRenderer.transform;
             float z = existing.localPosition.z;
 
-            // Add horizontal bar at the bottom of the vertical bar
-            var hBar = Instantiate(existing.gameObject, existing.parent);
-            hBar.name = "IndicatorH";
-            hBar.transform.localRotation = Quaternion.Euler(0, 0, 90f);
-            hBar.transform.localPosition = new Vector3(0f, -0.25f, z);
-            hBar.transform.localScale = new Vector3(1f, 0.7f, 1f);
+            // Left bar (/ shape)
+            existing.localRotation = Quaternion.Euler(0, 0, 45f);
+            existing.localScale = new Vector3(0.7f, 0.5f, 1f);
+            existing.localPosition = new Vector3(-0.12f, 0f, z);
+
+            // Right bar (\ shape)
+            var rightBar = Instantiate(existing.gameObject, existing.parent);
+            rightBar.name = "IndicatorR";
+            rightBar.transform.localRotation = Quaternion.Euler(0, 0, -45f);
+            rightBar.transform.localScale = new Vector3(0.7f, 0.5f, 1f);
+            rightBar.transform.localPosition = new Vector3(0.12f, 0f, z);
         }
 
         private void CreateMergerIndicator()

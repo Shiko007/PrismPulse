@@ -80,26 +80,5 @@ namespace PrismPulse.Core.Puzzle
 
             return false;
         }
-
-        /// <summary>
-        /// Given the current board state and a known solution, returns the next
-        /// tile that needs rotating and how many rotations are needed.
-        /// Returns null if already solved or no hint available.
-        /// </summary>
-        public static (GridPosition pos, int rotationsNeeded)? GetNextHint(
-            BoardState board, Dictionary<GridPosition, int> solution)
-        {
-            if (solution == null) return null;
-
-            foreach (var kvp in solution)
-            {
-                int current = board.GetTile(kvp.Key).Rotation;
-                int target = kvp.Value;
-                if (current != target)
-                    return (kvp.Key, (target - current + 4) % 4);
-            }
-
-            return null; // already solved
-        }
     }
 }

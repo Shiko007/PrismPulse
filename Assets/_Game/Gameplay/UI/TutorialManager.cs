@@ -67,9 +67,10 @@ namespace PrismPulse.Gameplay.UI
                 }
             },
             {
-                4, new[]
+                6, new[]
                 {
-                    new TutorialStep("Dark tiles block all light\nexcept their activation color")
+                    new TutorialStep("Drag a tile onto another\nto swap their positions"),
+                    new TutorialStep("Place tiles in the right spots\nthen rotate to solve")
                 }
             },
         };

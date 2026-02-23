@@ -163,14 +163,12 @@ namespace PrismPulse.Gameplay.Levels
         {
             return new LevelDefinition
             {
-                Id = "05", Name = "Dark Passage", Width = 5, Height = 1,
+                Id = "05", Name = "Red Passage", Width = 5, Height = 1,
                 ParMoves = 2, ParTimeSeconds = 20f,
                 Tiles = new[]
                 {
                     Src(0, 0, LightColor.Red, Direction.Right),
                     Str(1, 0, 0),
-                    new LevelDefinition.TileDef { Col=2, Row=0, Type=TileType.DarkAbsorber,
-                        Color=LightColor.Red, Locked=true },
                     Str(3, 0, 0),
                     Tgt(4, 0, LightColor.Red),
                 }
@@ -630,18 +628,16 @@ namespace PrismPulse.Gameplay.Levels
         // ================================================================
         private static LevelDefinition Level18()
         {
-            // Filtered Cross — Two L-shaped paths with DarkAbsorber gate.
+            // Filtered Cross — Two L-shaped paths.
             // No source faces same-color target on same row/col.
             //
             // 5x3:
             // Row 0: Src(G,↓)   .       Src(R,↓)    .        .
             // Row 1: Str        .       Str          .        .
-            // Row 2: Bnd      Tgt(G)    Bnd        Dark(R,L) Tgt(R)
+            // Row 2: Bnd      Tgt(G)    Bnd          .      Tgt(R)
             //
             // G: ↓Str(0,1)↓Bnd(0,2) rot=0→Right→Tgt(1,2) ✓
-            // R: ↓Str(2,1)↓Bnd(2,2) rot=0→Right→Dark(3,2) passes Red→Tgt(4,2) ✓
-            // Str(0,1): vert, start 1→0. Bnd(0,2): start 3→0.
-            // Str(2,1): vert, start 1→0. Bnd(2,2): start 3→0.
+            // R: ↓Str(2,1)↓Bnd(2,2) rot=0→Right→empty(3,2)→Tgt(4,2) ✓
             // Total: 4 moves.
             return new LevelDefinition
             {
@@ -656,12 +652,10 @@ namespace PrismPulse.Gameplay.Levels
                     Bnd(0, 2, 3),  // needs rot=0 → 1 click (Down→Right)
                     Tgt(1, 2, LightColor.Green),
 
-                    // Red: down, bend right through DarkAbsorber to target
+                    // Red: down, bend right to target
                     Src(2, 0, LightColor.Red, Direction.Down),
                     Str(2, 1, 1),  // needs rot=0 → 1 click
                     Bnd(2, 2, 3),  // needs rot=0 → 1 click (Down→Right)
-                    new LevelDefinition.TileDef { Col=3, Row=2, Type=TileType.DarkAbsorber,
-                        Color=LightColor.Red, Locked=true },
                     Tgt(4, 2, LightColor.Red),
                 }
             };
@@ -974,32 +968,16 @@ namespace PrismPulse.Gameplay.Levels
         // ================================================================
         private static LevelDefinition Level23()
         {
-            // Color Trifecta — Two merge targets. Sources point Down, bend into targets.
-            // No source faces target on same row/col.
-            //
-            // 5x3:
-            // Row 0: Src(R,↓) Src(G,↓)  .      Src(R,↓) Src(B,↓)
-            // Row 1: Bnd      Bnd        .      Bnd      Bnd
-            // Row 2: .        Tgt(Y)     .      Tgt(P)   .
-            //
-            // Yellow (R+G): R↓Bnd(0,1) rot=0→Right→Tgt(1,2)? No, (1,1) is Bnd for G.
-            // Need more spacing.
-            //
-            // 5x2:
-            // Row 0: Src(R,↓)  Src(G,↓)  .     Src(R2,↓) Src(B,↓)
-            // Row 1: Bnd       Bnd        .     Bnd       Bnd
-            // R1↓Bnd(0,1)→R, G↓Bnd(1,1)→L. Both converge at... no, they go different dirs.
-            //
-            // Simpler: each pair of sources bends into a shared target below them.
+            // Color Trifecta — Two merge targets. Sources point Down, mirrors reflect into targets.
             // 4x3:
             // Row 0: Src(R,↓)  .        Src(B,↓)  .
-            // Row 1: Bnd      Tgt(Y)    Bnd       Tgt(P)
+            // Row 1: Mir      Tgt(Y)    Mir       Tgt(P)
             // Row 2: .        Src(G,↑)  .         Src(R2,↑)
             //
-            // Yellow: R↓Bnd(0,1) rot=0→R→Tgt(1,1). G↑→Tgt(1,1). R|G=Y ✓
-            // Purple: B↓Bnd(2,1) rot=0→R→Tgt(3,1). R2↑→Tgt(3,1). R|B=P ✓
-            // Bnd(0,1): start 3→0, 1 click. Bnd(2,1): start 3→0, 1 click.
-            // Total: 2 moves. Simple but clean.
+            // Yellow: R↓Mir(0,1) rot=0→R→Tgt(1,1). G↑→Tgt(1,1). R|G=Y ✓
+            // Purple: B↓Mir(2,1) rot=0→R→Tgt(3,1). R2↑→Tgt(3,1). R|B=P ✓
+            // Mir(0,1): start 3→0, 1 click. Mir(2,1): start 3→0, 1 click.
+            // Total: 2 moves.
             return new LevelDefinition
             {
                 Id = "23", Name = "Color Trifecta", Width = 4, Height = 3,
@@ -1009,13 +987,13 @@ namespace PrismPulse.Gameplay.Levels
                 {
                     // Yellow: R+G
                     Src(0, 0, LightColor.Red, Direction.Down),
-                    Bnd(0, 1, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Mir(0, 1, 3),  // needs rot=0 → 1 click (reflects Down→Right)
                     Tgt(1, 1, LightColor.Yellow),
                     Src(1, 2, LightColor.Green, Direction.Up),
 
                     // Purple: R+B
                     Src(2, 0, LightColor.Blue, Direction.Down),
-                    Bnd(2, 1, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Mir(2, 1, 3),  // needs rot=0 → 1 click (reflects Down→Right)
                     Tgt(3, 1, LightColor.Purple),
                     Src(3, 2, LightColor.Red, Direction.Up),
                 }
@@ -1153,38 +1131,34 @@ namespace PrismPulse.Gameplay.Levels
         // ================================================================
         private static LevelDefinition Level26()
         {
-            // Dark Labyrinth — Two L-paths with DarkAbsorber gates.
+            // Twin Paths — Two L-paths, one per color.
             // No source faces same-color target on same row/col.
             //
             // 5x4:
             // Row 0: Src(R,↓)  .       .       .     Src(B,↓)
             // Row 1: Str       .       .       .     Str
-            // Row 2: Bnd     Dark(R,L) Tgt(R)  .      .
-            // Row 3: .         .      Tgt(B) Dark(B,L) Bnd
+            // Row 2: Bnd       .     Tgt(R)    .      .
+            // Row 3: .         .     Tgt(B)    .     Bnd
             //
-            // R: ↓Str(0,1)↓Bnd(0,2)→R→Dark(1,2)→Tgt(2,2) ✓
-            // B: ↓Str(4,1)↓(4,2)empty↓Bnd(4,3)→L→Dark(3,3)→Tgt(2,3) ✓
+            // R: ↓Str(0,1)↓Bnd(0,2)→R→empty(1,2)→Tgt(2,2) ✓
+            // B: ↓Str(4,1)↓empty(4,2)↓Bnd(4,3)→L→empty(3,3)→Tgt(2,3) ✓
             return new LevelDefinition
             {
-                Id = "26", Name = "Dark Labyrinth", Width = 5, Height = 4,
+                Id = "26", Name = "Twin Paths", Width = 5, Height = 4,
                 ParMoves = 4, ParTimeSeconds = 25f,
                 ShuffleMode = true,
                 Tiles = new[]
                 {
-                    // Red path: down, bend right, through Dark gate to target
+                    // Red path: down, bend right to target
                     Src(0, 0, LightColor.Red, Direction.Down),
                     Str(0, 1, 1),  // needs rot=0 → 1 click
                     Bnd(0, 2, 3),  // needs rot=0 → 1 click (Down→Right)
-                    new LevelDefinition.TileDef { Col=1, Row=2, Type=TileType.DarkAbsorber,
-                        Color=LightColor.Red, Locked=true },
                     Tgt(2, 2, LightColor.Red),
 
-                    // Blue path: down, bend left, through Dark gate to target
+                    // Blue path: down, bend left to target
                     Src(4, 0, LightColor.Blue, Direction.Down),
                     Str(4, 1, 1),  // needs rot=0 → 1 click
                     Bnd(4, 3, 2),  // needs rot=3 → 1 click (Down→Left)
-                    new LevelDefinition.TileDef { Col=3, Row=3, Type=TileType.DarkAbsorber,
-                        Color=LightColor.Blue, Locked=true },
                     Tgt(2, 3, LightColor.Blue),
                 }
             };
@@ -1619,12 +1593,10 @@ namespace PrismPulse.Gameplay.Levels
                     Src(4, 2, LightColor.Green, Direction.Left),
                     Tgt(3, 2, LightColor.Yellow),
 
-                    // Blue path: down, bend right, through dark gate
+                    // Blue path: down, bend right to target
                     Src(0, 3, LightColor.Blue, Direction.Down),
                     Bnd(0, 4, 3),  // needs rot=0 → 1 click (Down→Right)
                     Str(1, 4, 0),  // needs rot=1 → 1 click
-                    new LevelDefinition.TileDef { Col=2, Row=4, Type=TileType.DarkAbsorber,
-                        Color=LightColor.Blue, Locked=true },
                     Str(3, 4, 0),  // needs rot=1 → 1 click
                     Tgt(4, 4, LightColor.Blue),
                 }

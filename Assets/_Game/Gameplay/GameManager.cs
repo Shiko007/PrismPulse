@@ -43,7 +43,6 @@ namespace PrismPulse.Gameplay
 
         private LevelDefinition[] _levels;
         private int _currentLevelIndex;
-
         private struct UndoEntry
         {
             public bool IsSwap;
@@ -53,7 +52,6 @@ namespace PrismPulse.Gameplay
         }
 
         private readonly Stack<UndoEntry> _undoStack = new Stack<UndoEntry>();
-        private Dictionary<GridPosition, int> _solution;
 
         private void Awake()
         {
@@ -71,7 +69,6 @@ namespace PrismPulse.Gameplay
             {
                 _hud.Initialize();
                 _hud.OnUndo = UndoLastMove;
-                _hud.OnHint = ShowHint;
             }
 
             if (_winScreen != null)
@@ -151,7 +148,6 @@ namespace PrismPulse.Gameplay
             _moveCount = 0;
             _puzzleSolved = false;
             _undoStack.Clear();
-            _solution = PuzzleSolver.Solve(_boardState);
             if (_hud != null) _hud.SetUndoInteractable(false);
 
             _beamRenderer.ClearBeams();
@@ -325,26 +321,6 @@ namespace PrismPulse.Gameplay
             HapticFeedback.LightTap();
 
             TraceAndRender();
-        }
-
-        public void ShowHint()
-        {
-            if (_puzzleSolved) return;
-
-            // Re-solve from current state so the hint is always optimal
-            _solution = PuzzleSolver.Solve(_boardState);
-            if (_solution == null) return;
-
-            var hint = PuzzleSolver.GetNextHint(_boardState, _solution);
-            if (hint == null) return;
-
-            var tileView = _boardView.GetTileView(hint.Value.pos);
-            if (tileView != null)
-            {
-                tileView.AnimateHintPulse();
-                if (SoundManager.Instance != null) SoundManager.Instance.PlayBeamConnect();
-                HapticFeedback.MediumTap();
-            }
         }
 
         /// <summary>
