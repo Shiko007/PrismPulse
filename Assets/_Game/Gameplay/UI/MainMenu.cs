@@ -146,53 +146,88 @@ namespace PrismPulse.Gameplay.UI
             _settingsPanel = new GameObject("SettingsPanel");
             _settingsPanel.transform.SetParent(parent, false);
             var panelRect = _settingsPanel.AddComponent<RectTransform>();
-            panelRect.anchorMin = new Vector2(0.1f, 0.35f);
-            panelRect.anchorMax = new Vector2(0.9f, 0.65f);
+            panelRect.anchorMin = new Vector2(0.05f, 0.2f);
+            panelRect.anchorMax = new Vector2(0.95f, 0.8f);
             panelRect.sizeDelta = Vector2.zero;
             var panelImage = _settingsPanel.AddComponent<Image>();
             panelImage.color = new Color(0.06f, 0.06f, 0.12f, 0.95f);
 
             // Title
             var title = CreateText(_settingsPanel.transform, "SettingsTitle", "Settings",
-                new Vector2(0.5f, 0.85f), 42, TextAlignmentOptions.Center);
+                new Vector2(0.5f, 0.92f), 42, TextAlignmentOptions.Center);
             title.color = new Color(0.7f, 0.8f, 1f);
 
-            // Sound label
+            // --- Volume ---
+            CreateText(_settingsPanel.transform, "VolumeLabel", "Volume",
+                new Vector2(0.25f, 0.78f), 30, TextAlignmentOptions.Center);
+
+            float currentVolume = SoundManager.Instance != null ? SoundManager.Instance.Volume : 0.7f;
+            var volumeSlider = CreateSlider(_settingsPanel.transform, "VolumeSlider",
+                new Vector2(0.65f, 0.78f), new Vector2(320, 40), currentVolume);
+            volumeSlider.onValueChanged.AddListener(v =>
+            {
+                if (SoundManager.Instance != null) SoundManager.Instance.Volume = v;
+            });
+
+            // --- Sound toggle ---
             CreateText(_settingsPanel.transform, "SoundLabel", "Sound",
-                new Vector2(0.3f, 0.55f), 32, TextAlignmentOptions.Center);
+                new Vector2(0.25f, 0.63f), 30, TextAlignmentOptions.Center);
 
-            // Sound toggle button
             _soundOn = SoundManager.Instance == null || !SoundManager.Instance.IsMuted;
-            var toggleBtn = CreateButton(_settingsPanel.transform, _soundOn ? "ON" : "OFF",
-                new Vector2(0.7f, 0.55f), _soundOn ? new Color(0.2f, 0.7f, 0.4f) : new Color(0.5f, 0.2f, 0.2f),
-                new Vector2(140, 50), 28);
-
-            var toggleImage = toggleBtn.GetComponent<Image>();
-            toggleBtn.onClick.AddListener(() =>
+            var soundBtn = CreateToggle(_settingsPanel.transform, "SoundToggle",
+                new Vector2(0.65f, 0.63f), _soundOn);
+            var soundBtnImage = soundBtn.GetComponent<Image>();
+            _soundToggleLabel = soundBtn.GetComponentInChildren<TextMeshProUGUI>();
+            soundBtn.onClick.AddListener(() =>
             {
                 _soundOn = !_soundOn;
                 if (SoundManager.Instance != null)
                     SoundManager.Instance.IsMuted = !_soundOn;
-
-                // Update button visual
-                _soundToggleLabel.text = _soundOn ? "ON" : "OFF";
-                var c = _soundOn ? new Color(0.2f, 0.7f, 0.4f) : new Color(0.5f, 0.2f, 0.2f);
-                toggleImage.color = c;
-                var colors = toggleBtn.colors;
-                colors.normalColor = c;
-                colors.highlightedColor = c * 1.3f;
-                colors.pressedColor = c * 0.8f;
-                toggleBtn.colors = colors;
-
+                UpdateToggleVisual(soundBtn, soundBtnImage, _soundToggleLabel, _soundOn);
                 if (SoundManager.Instance != null && _soundOn)
                     SoundManager.Instance.PlayButtonClick();
                 HapticFeedback.LightTap();
             });
-            _soundToggleLabel = toggleBtn.GetComponentInChildren<TextMeshProUGUI>();
+
+            // --- Haptics toggle ---
+            CreateText(_settingsPanel.transform, "HapticsLabel", "Haptics",
+                new Vector2(0.25f, 0.48f), 30, TextAlignmentOptions.Center);
+
+            bool hapticsOn = HapticFeedback.Enabled;
+            var hapticsBtn = CreateToggle(_settingsPanel.transform, "HapticsToggle",
+                new Vector2(0.65f, 0.48f), hapticsOn);
+            var hapticsBtnImage = hapticsBtn.GetComponent<Image>();
+            var hapticsLabel = hapticsBtn.GetComponentInChildren<TextMeshProUGUI>();
+            hapticsBtn.onClick.AddListener(() =>
+            {
+                hapticsOn = !hapticsOn;
+                HapticFeedback.Enabled = hapticsOn;
+                UpdateToggleVisual(hapticsBtn, hapticsBtnImage, hapticsLabel, hapticsOn);
+                if (SoundManager.Instance != null) SoundManager.Instance.PlayButtonClick();
+                if (hapticsOn) HapticFeedback.LightTap();
+            });
+
+            // --- Color-blind mode toggle ---
+            CreateText(_settingsPanel.transform, "CbLabel", "Color-Blind",
+                new Vector2(0.25f, 0.33f), 30, TextAlignmentOptions.Center);
+
+            bool cbOn = LightColorMap.ColorBlindMode;
+            var cbBtn = CreateToggle(_settingsPanel.transform, "CbToggle",
+                new Vector2(0.65f, 0.33f), cbOn);
+            var cbBtnImage = cbBtn.GetComponent<Image>();
+            var cbLabel = cbBtn.GetComponentInChildren<TextMeshProUGUI>();
+            cbBtn.onClick.AddListener(() =>
+            {
+                cbOn = !cbOn;
+                LightColorMap.ColorBlindMode = cbOn;
+                UpdateToggleVisual(cbBtn, cbBtnImage, cbLabel, cbOn);
+                if (SoundManager.Instance != null) SoundManager.Instance.PlayButtonClick();
+                HapticFeedback.LightTap();
+            });
 
             // Close button
             var closeBtn = CreateButton(_settingsPanel.transform, "Close",
-                new Vector2(0.5f, 0.15f), new Color(0.3f, 0.3f, 0.4f),
+                new Vector2(0.5f, 0.12f), new Color(0.3f, 0.3f, 0.4f),
                 new Vector2(200, 50), 28);
             closeBtn.onClick.AddListener(() =>
             {
@@ -202,6 +237,94 @@ namespace PrismPulse.Gameplay.UI
             });
 
             _settingsPanel.SetActive(false);
+        }
+
+        private Button CreateToggle(Transform parent, string name, Vector2 anchorPos, bool isOn)
+        {
+            var color = isOn ? new Color(0.2f, 0.7f, 0.4f) : new Color(0.5f, 0.2f, 0.2f);
+            var btn = CreateButton(parent, isOn ? "ON" : "OFF", anchorPos, color, new Vector2(140, 50), 28);
+            return btn;
+        }
+
+        private void UpdateToggleVisual(Button btn, Image bg, TextMeshProUGUI label, bool isOn)
+        {
+            label.text = isOn ? "ON" : "OFF";
+            var c = isOn ? new Color(0.2f, 0.7f, 0.4f) : new Color(0.5f, 0.2f, 0.2f);
+            bg.color = c;
+            var colors = btn.colors;
+            colors.normalColor = c;
+            colors.highlightedColor = c * 1.3f;
+            colors.pressedColor = c * 0.8f;
+            btn.colors = colors;
+        }
+
+        private Slider CreateSlider(Transform parent, string name, Vector2 anchorPos, Vector2 size, float value)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = anchorPos;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = size;
+            rect.anchoredPosition = Vector2.zero;
+
+            // Background
+            var bgGO = new GameObject("Background");
+            bgGO.transform.SetParent(go.transform, false);
+            var bgRect = bgGO.AddComponent<RectTransform>();
+            bgRect.anchorMin = new Vector2(0f, 0.35f);
+            bgRect.anchorMax = new Vector2(1f, 0.65f);
+            bgRect.sizeDelta = Vector2.zero;
+            bgRect.offsetMin = Vector2.zero;
+            bgRect.offsetMax = Vector2.zero;
+            var bgImg = bgGO.AddComponent<Image>();
+            bgImg.color = new Color(0.15f, 0.15f, 0.2f);
+
+            // Fill area
+            var fillAreaGO = new GameObject("Fill Area");
+            fillAreaGO.transform.SetParent(go.transform, false);
+            var fillAreaRect = fillAreaGO.AddComponent<RectTransform>();
+            fillAreaRect.anchorMin = new Vector2(0f, 0.35f);
+            fillAreaRect.anchorMax = new Vector2(1f, 0.65f);
+            fillAreaRect.sizeDelta = Vector2.zero;
+            fillAreaRect.offsetMin = Vector2.zero;
+            fillAreaRect.offsetMax = Vector2.zero;
+
+            var fillGO = new GameObject("Fill");
+            fillGO.transform.SetParent(fillAreaGO.transform, false);
+            var fillRect = fillGO.AddComponent<RectTransform>();
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = Vector2.one;
+            fillRect.sizeDelta = Vector2.zero;
+            var fillImg = fillGO.AddComponent<Image>();
+            fillImg.color = new Color(0.3f, 0.6f, 0.9f);
+
+            // Handle slide area
+            var handleAreaGO = new GameObject("Handle Slide Area");
+            handleAreaGO.transform.SetParent(go.transform, false);
+            var handleAreaRect = handleAreaGO.AddComponent<RectTransform>();
+            handleAreaRect.anchorMin = Vector2.zero;
+            handleAreaRect.anchorMax = Vector2.one;
+            handleAreaRect.sizeDelta = Vector2.zero;
+            handleAreaRect.offsetMin = new Vector2(10f, 0f);
+            handleAreaRect.offsetMax = new Vector2(-10f, 0f);
+
+            var handleGO = new GameObject("Handle");
+            handleGO.transform.SetParent(handleAreaGO.transform, false);
+            var handleRect = handleGO.AddComponent<RectTransform>();
+            handleRect.sizeDelta = new Vector2(24, 24);
+            var handleImg = handleGO.AddComponent<Image>();
+            handleImg.color = Color.white;
+
+            var slider = go.AddComponent<Slider>();
+            slider.fillRect = fillRect;
+            slider.handleRect = handleRect;
+            slider.targetGraphic = handleImg;
+            slider.minValue = 0f;
+            slider.maxValue = 1f;
+            slider.value = value;
+
+            return slider;
         }
 
         private void ShowSettings(bool show)

@@ -26,6 +26,7 @@ namespace PrismPulse.Gameplay.BoardView
 
         private Material _tileMat;
         private Material _indicatorMat;
+        private TextMesh _colorLabel;
 
         public GridPosition GridPosition => _gridPosition;
 
@@ -48,10 +49,38 @@ namespace PrismPulse.Gameplay.BoardView
                     _indicatorMat = _indicatorRenderer.material;
             }
 
+            // Color-blind label for Source and Target tiles
+            if (LightColorMap.ColorBlindMode &&
+                (state.Type == TileType.Source || state.Type == TileType.Target))
+            {
+                CreateColorLabel(state);
+            }
+
             // Set initial rotation
             transform.localRotation = Quaternion.Euler(0f, 0f, -state.Rotation * 90f);
 
             UpdateVisual(state);
+        }
+
+        private void CreateColorLabel(TileState state)
+        {
+            var labelColor = state.Type == TileType.Source ? state.SourceColor : state.RequiredColor;
+            string text = LightColorMap.ToLabel(labelColor);
+            if (string.IsNullOrEmpty(text)) return;
+
+            var labelGO = new GameObject("ColorLabel");
+            labelGO.transform.SetParent(transform, false);
+            // Counter-rotate so label stays upright regardless of tile rotation
+            labelGO.transform.localPosition = new Vector3(0.3f, -0.3f, -0.1f);
+            labelGO.transform.localScale = Vector3.one * 0.08f;
+
+            _colorLabel = labelGO.AddComponent<TextMesh>();
+            _colorLabel.text = text;
+            _colorLabel.fontSize = 48;
+            _colorLabel.anchor = TextAnchor.MiddleCenter;
+            _colorLabel.alignment = TextAlignment.Center;
+            _colorLabel.color = Color.white;
+            _colorLabel.fontStyle = FontStyle.Bold;
         }
 
         public void UpdateVisual(TileState state)
@@ -207,6 +236,13 @@ namespace PrismPulse.Gameplay.BoardView
                     originalColor, 0.5f
                 ).SetEase(Ease.OutQuad);
             }
+        }
+
+        private void LateUpdate()
+        {
+            // Keep color-blind label upright regardless of tile rotation
+            if (_colorLabel != null)
+                _colorLabel.transform.rotation = Quaternion.identity;
         }
 
         /// <summary>

@@ -17,24 +17,42 @@ namespace PrismPulse.Gameplay.Audio
         [DllImport("__Internal")] private static extern void _HapticNotificationSuccess();
 #endif
 
+        private static bool? _enabled;
+
+        public static bool Enabled
+        {
+            get
+            {
+                if (_enabled == null)
+                    _enabled = PlayerPrefs.GetInt("haptics_enabled", 1) == 1;
+                return _enabled.Value;
+            }
+            set
+            {
+                _enabled = value;
+                PlayerPrefs.SetInt("haptics_enabled", value ? 1 : 0);
+                PlayerPrefs.Save();
+            }
+        }
+
         public static void LightTap()
         {
 #if UNITY_IOS && !UNITY_EDITOR
-            _HapticImpactLight();
+            if (Enabled) _HapticImpactLight();
 #endif
         }
 
         public static void MediumTap()
         {
 #if UNITY_IOS && !UNITY_EDITOR
-            _HapticImpactMedium();
+            if (Enabled) _HapticImpactMedium();
 #endif
         }
 
         public static void Success()
         {
 #if UNITY_IOS && !UNITY_EDITOR
-            _HapticNotificationSuccess();
+            if (Enabled) _HapticNotificationSuccess();
 #endif
         }
     }

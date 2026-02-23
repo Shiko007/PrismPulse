@@ -34,6 +34,8 @@ namespace PrismPulse.Gameplay.Audio
 
             _source = gameObject.AddComponent<AudioSource>();
             _source.playOnAwake = false;
+            _masterVolume = PlayerPrefs.GetFloat("sound_volume", 0.7f);
+            _source.mute = PlayerPrefs.GetInt("sound_muted", 0) == 1;
 
             GenerateClips();
         }
@@ -41,7 +43,23 @@ namespace PrismPulse.Gameplay.Audio
         public bool IsMuted
         {
             get => _source != null && _source.mute;
-            set { if (_source != null) _source.mute = value; }
+            set
+            {
+                if (_source != null) _source.mute = value;
+                PlayerPrefs.SetInt("sound_muted", value ? 1 : 0);
+                PlayerPrefs.Save();
+            }
+        }
+
+        public float Volume
+        {
+            get => _masterVolume;
+            set
+            {
+                _masterVolume = Mathf.Clamp01(value);
+                PlayerPrefs.SetFloat("sound_volume", _masterVolume);
+                PlayerPrefs.Save();
+            }
         }
 
         public void PlayRotate() => PlayClip(_rotateClip, 0.5f);
