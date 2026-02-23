@@ -6,6 +6,7 @@ using PrismPulse.Core.Puzzle;
 using PrismPulse.Gameplay.Audio;
 using PrismPulse.Gameplay.Effects;
 using PrismPulse.Gameplay.Levels;
+using PrismPulse.Gameplay.Progress;
 using PrismPulse.Gameplay.UI;
 
 namespace PrismPulse.Gameplay
@@ -22,6 +23,7 @@ namespace PrismPulse.Gameplay
         [SerializeField] private GameHUD _hud;
         [SerializeField] private WinScreen _winScreen;
         [SerializeField] private MainMenu _mainMenu;
+        [SerializeField] private LevelSelectScreen _levelSelect;
 
         private BoardState _boardState;
         private BeamTracer _beamTracer;
@@ -50,37 +52,55 @@ namespace PrismPulse.Gameplay
                 _winScreen.Initialize();
                 _winScreen.OnNextLevel = NextLevel;
                 _winScreen.OnRestart = RestartLevel;
-                _winScreen.OnMainMenu = ShowMainMenu;
+                _winScreen.OnMainMenu = ShowLevelSelect;
+            }
+
+            if (_levelSelect != null)
+            {
+                _levelSelect.Initialize(_levels);
+                _levelSelect.OnLevelSelected = StartLevel;
+                _levelSelect.OnBack = ShowMainMenu;
             }
 
             if (_mainMenu != null)
             {
                 _mainMenu.Initialize();
-                _mainMenu.OnPlay = StartGame;
+                _mainMenu.OnPlay = ShowLevelSelect;
                 if (_hud != null) _hud.Hide();
                 _mainMenu.Show();
             }
             else
             {
-                // No menu — load first level directly (fallback)
                 LoadLevel(_currentLevelIndex);
             }
         }
 
-        public void StartGame()
-        {
-            if (_mainMenu != null) _mainMenu.Hide();
-            if (_hud != null) _hud.Show();
-            LoadLevel(_currentLevelIndex);
-        }
-
-        public void ShowMainMenu()
+        public void ShowLevelSelect()
         {
             // Hide game elements
             _boardView.ClearBoard();
             _beamRenderer.ClearBeams();
             if (_hud != null) { _hud.Stop(); _hud.Hide(); }
             if (_winScreen != null) _winScreen.Hide();
+            if (_mainMenu != null) _mainMenu.Hide();
+
+            if (_levelSelect != null) _levelSelect.Show();
+        }
+
+        public void StartLevel(int index)
+        {
+            if (_levelSelect != null) _levelSelect.Hide();
+            if (_hud != null) _hud.Show();
+            LoadLevel(index);
+        }
+
+        public void ShowMainMenu()
+        {
+            _boardView.ClearBoard();
+            _beamRenderer.ClearBeams();
+            if (_hud != null) { _hud.Stop(); _hud.Hide(); }
+            if (_winScreen != null) _winScreen.Hide();
+            if (_levelSelect != null) _levelSelect.Hide();
 
             _currentLevelIndex = 0;
 
@@ -142,10 +162,12 @@ namespace PrismPulse.Gameplay
                 int stars = _hud != null ? _hud.GetStarRating() : 1;
                 float time = _hud != null ? _hud.ElapsedTime : 0f;
 
+                // Save progress
+                ProgressManager.SetStars(_levels[_currentLevelIndex].Id, stars);
+
                 Debug.Log($"Puzzle '{_levels[_currentLevelIndex].Name}' solved! " +
                           $"{_moveCount} moves, {time:F1}s, {stars} stars");
 
-                // Celebration particles using level's beam colors
                 var levelColors = GetLevelColors();
                 ParticleEffectFactory.CreatePuzzleSolvedEffect(Vector3.zero, levelColors);
 
@@ -162,17 +184,15 @@ namespace PrismPulse.Gameplay
             var cam = Camera.main;
             if (cam == null) return;
 
-            float tileSpacing = 1.15f; // tileSize + gap
+            float tileSpacing = 1.15f;
             float boardWorldWidth = boardWidth * tileSpacing;
             float boardWorldHeight = boardHeight * tileSpacing;
 
             float screenAspect = (float)Screen.width / Screen.height;
 
-            // Account for HUD space at top (~15% of screen) and bottom padding
             float verticalPadding = 1.8f;
             float horizontalPadding = 1.2f;
 
-            // Orthographic size is half the vertical extent
             float sizeForHeight = (boardWorldHeight * 0.5f) + verticalPadding;
             float sizeForWidth = ((boardWorldWidth * 0.5f) + horizontalPadding) / screenAspect;
 
