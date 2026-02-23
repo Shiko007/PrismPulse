@@ -25,6 +25,9 @@ namespace PrismPulse.Gameplay.Levels
             Level21(), Level22(), Level23(), Level24(),
             Level25(), Level26(), Level27(), Level28(),
             Level29(), Level30(), Level31(), Level32(),
+            Level33(), Level34(), Level35(), Level36(),
+            Level37(), Level38(), Level39(), Level40(),
+            Level41(), Level42(),
         };
 
         // ================================================================
@@ -1449,6 +1452,670 @@ namespace PrismPulse.Gameplay.Levels
                     Str(4, 4, 0),  // needs rot=1 → 1 click
                     Str(5, 4, 0),  // needs rot=1 → 1 click
                     Tgt(6, 4, LightColor.Blue),
+                }
+            };
+        }
+
+        // ================================================================
+        // TIER 8: COLOR MERGING FOCUS (Levels 33–42)
+        // Theme: wrong-merge traps — player can accidentally combine
+        // colors that contaminate a target.
+        // ================================================================
+
+        // Level 33: "Careful Mix" — R+G=Yellow. Blue trap nearby.
+        //   Row 0: Src(R,↓)  Src(B,↓)  Src(G,↓)
+        //   Row 1: Bnd       Bnd       Bnd
+        //   Row 2: .        Tgt(Y)     .
+        //   R: ↓Bnd(0,1) rot=0→Right→(1,1)Bnd. Conflict — two tiles same cell.
+        //   Use 4 cols:
+        //   Row 0: Src(R,↓) Src(B,↓) . Src(G,↓)
+        //   Row 1: Bnd  .  Tgt(Y) Bnd
+        //   R: ↓Bnd(0,1) rot=0→Right→(1,1) empty→Tgt(Y,2,1). R enters from Left ✓
+        //   G: ↓Bnd(3,1) rot=3→Left→Tgt(Y,2,1). G enters from Right ✓  R|G=Y ✓
+        //   B: ↓(1,1) empty, passes down off board. Never hits target. ✓
+        //   Trap: Bnd(3,1) at rot=0→Right→off board. G never reaches target ✗
+        //         Bnd(0,1) at rot=3→Left→off board. R never reaches target ✗
+        //   Bnd(0,1): start 3→0, 1 click. Bnd(3,1): start 2→3, 1 click.
+        //   Total: 2 moves.
+        // ================================================================
+        private static LevelDefinition Level33()
+        {
+            return new LevelDefinition
+            {
+                Id = "33", Name = "Careful Mix", Width = 4, Height = 2,
+                ParMoves = 2, ParTimeSeconds = 10f,
+                Tiles = new[]
+                {
+                    Src(0, 0, LightColor.Red, Direction.Down),
+                    Src(1, 0, LightColor.Blue, Direction.Down),   // trap — goes off board
+                    Src(3, 0, LightColor.Green, Direction.Down),
+                    Bnd(0, 1, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Tgt(2, 1, LightColor.Yellow),  // needs R+G
+                    Bnd(3, 1, 2),  // needs rot=3 → 1 click (Down→Left)
+                }
+            };
+        }
+
+        // ================================================================
+        // Level 34: "Split Decision" — Two targets need different mixes.
+        //   5x1. R→ Str Tgt(Y) Str ←G, plus R→ Str Tgt(P) Str ←B on row 2.
+        //   Trap: if you accidentally connect R to B's row you get Purple
+        //   contaminating Yellow's row.
+        //   5x3. Row 0: Src(R,→) Str Tgt(Y) Str Src(G,←)
+        //         Row 1: .  Bnd . Bnd .
+        //         Row 2: Src(B,→) Str Tgt(P) Str .
+        //   Bends are traps — if rotated wrong, Red leaks to row 2.
+        //   Solution: Str(1,0)(3,0)(1,2)(3,2) all horiz. 4 moves.
+        //   Bnd tiles start at rot that doesn't connect anything.
+        // ================================================================
+        private static LevelDefinition Level34()
+        {
+            return new LevelDefinition
+            {
+                Id = "34", Name = "Split Decision", Width = 5, Height = 3,
+                ParMoves = 4, ParTimeSeconds = 20f,
+                Tiles = new[]
+                {
+                    // Yellow: R+G
+                    Src(0, 0, LightColor.Red, Direction.Right),
+                    Str(1, 0, 0),  // needs rot=1 → 1 click
+                    Tgt(2, 0, LightColor.Yellow),
+                    Str(3, 0, 0),  // needs rot=1 → 1 click
+                    Src(4, 0, LightColor.Green, Direction.Left),
+
+                    // Purple: R+B (separate Red source)
+                    Src(0, 2, LightColor.Red, Direction.Right),
+                    Str(1, 2, 0),  // needs rot=1 → 1 click
+                    Tgt(2, 2, LightColor.Purple),
+                    Str(3, 2, 0),  // needs rot=1 → 1 click
+                    Src(4, 2, LightColor.Blue, Direction.Left),
+                }
+            };
+        }
+
+        // ================================================================
+        // Level 35: "Color Gate" — Must merge R+B=Purple to pass dark gate.
+        //   7x1. R→ Str Str Tgt(W)=wrong! Actually:
+        //   R and B merge, then pass through Dark(Purple) to reach target.
+        //   5x1: Src(R,→) Str Tgt(P) . Src(B,←) — too simple.
+        //
+        //   5x3: R comes down, B comes down, merge at bottom row.
+        //   Row 0: Src(R,↓) . . . Src(B,↓)
+        //   Row 1: Bnd Str . Str Bnd
+        //   Row 2: . . Tgt(P) . .
+        //   R: ↓Bnd(0,1)→Str(1,1)→ to (2,1) empty→Tgt(2,2)? No, beam goes Right.
+        //   Simpler: merge via Cross.
+        //   5x3:
+        //   Row 0: Src(R,↓)  .   Src(G,↓)  .  Src(B,↓)
+        //   Row 1: Bnd      Str   Cross    Str  Bnd
+        //   Row 2:  .        .   Tgt(W)    .    .
+        //   R: ↓Bnd(0,1)→Str(1,1)→Cross(2,1)... passes through horiz.
+        //   G: ↓Cross(2,1)↓Tgt(2,2). Cross passes G vertically.
+        //   R enters Cross from Left → exits Right (horiz pass). Doesn't go down.
+        //   B enters Cross from Right → exits Left (horiz pass).
+        //   So only G reaches target. R|G|B won't happen.
+        //   Need merger instead.
+        //
+        //   Use Merger: Left+Right → Up output, but we want Down.
+        //   At rot=2: Left+Right → Down. ✓
+        //   5x3:
+        //   Row 0: Src(R,↓) .      .      . Src(B,↓)
+        //   Row 1: Bnd      Str  Merger(L) Str  Bnd
+        //   Row 2: .         .  Tgt(P)     .    .
+        //   R: ↓Bnd(0,1) rot=0→Right →Str(1,1)→Merger(2,1) from Left.
+        //   B: ↓Bnd(4,1) rot=3→Left →Str(3,1)→Merger(2,1) from Right.
+        //   Merger rot=2: Left+Right→Down. R|B=Purple ↓ Tgt(2,2) ✓
+        //   Bnd(0,1): start rot=3→0, 1 click. Bnd(4,1): start rot=2→3, 1 click.
+        //   Str(1,1)(3,1): start 0→1, 2 clicks.
+        //   Trap: if Bnd(0,1) rot=2→sends Down not Right. Or if Merger wrong rot.
+        //   Total: 4 moves.
+        // ================================================================
+        private static LevelDefinition Level35()
+        {
+            return new LevelDefinition
+            {
+                Id = "35", Name = "Color Gate", Width = 5, Height = 3,
+                ParMoves = 4, ParTimeSeconds = 25f,
+                Tiles = new[]
+                {
+                    Src(0, 0, LightColor.Red, Direction.Down),
+                    Src(4, 0, LightColor.Blue, Direction.Down),
+                    Bnd(0, 1, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Str(1, 1, 0),  // needs rot=1 → 1 click
+                    Mrg(2, 1, 0),  // needs rot=2 → 2 clicks (L+R→Down)
+                    Str(3, 1, 0),  // needs rot=1 → 1 click
+                    Bnd(4, 1, 2),  // needs rot=3 → 1 click (Down→Left)
+                    Tgt(2, 2, LightColor.Purple),
+                }
+            };
+        }
+
+        // ================================================================
+        // Level 36: "Wrong Turn" — Bend can send Blue into Yellow target.
+        //   5x3. R and G merge for Yellow. Blue must go to its own target.
+        //   A shared bend can send Blue the wrong way.
+        //   Row 0: Src(R,→) Str Tgt(Y) . .
+        //   Row 1: . . Str . .
+        //   Row 2: Src(G,→) Str Bnd Str Tgt(B)
+        //   Plus Src(B,↓) at (2,0) going down through Str(2,1) to Bnd(2,2).
+        //   Wait, Tgt(Y) is at (2,0). Conflict.
+        //
+        //   Redesign:
+        //   Row 0: Src(R,↓)  .    Src(B,↓)  .     .
+        //   Row 1: Str       Tgt(Y) Str     .     .
+        //   Row 2: Bnd       .      Bnd    Str  Tgt(B)
+        //   R: ↓Str(0,1)↓Bnd(0,2)→ goes Right. Need to reach Tgt(Y) at (1,1).
+        //   Doesn't work vertically.
+        //
+        //   Simplest approach:
+        //   5x3:
+        //   Row 0: Src(R,→) Str . . .
+        //   Row 1: . . Tgt(Y) . .
+        //   Row 2: . Src(G,↑) Bnd Str Tgt(B)
+        //   Plus Src(B,↓) at (2,0).
+        //   R: →Str(1,0)→(2,0) but Src(B) is there. Sources block? No, sources don't route.
+        //
+        //   Even simpler:
+        //   3x3:
+        //   Row 0: Src(R,↓) . Src(B,↓)
+        //   Row 1: Bnd Tgt(Y) Bnd
+        //   Row 2: . Src(G,↑) Tgt(B)
+        //   R: ↓Bnd(0,1) rot=0→Right→Tgt(Y,1,1). G: ↑→Tgt(Y,1,1). R|G=Y ✓
+        //   B: ↓Bnd(2,1). Need rot=3→Left→Tgt(Y)=WRONG (R|G|B=White).
+        //   Correct: rot=0→Right→off board? No. rot=2→Left→Tgt... also wrong.
+        //   Need Bnd(2,1) to go Down→Right... wait beam enters from Up.
+        //   Bend: Up enters. At rot=0: Up→Right ✓ sends to Tgt(B) at... no,
+        //   (2,1) Right goes to (3,1) off board (width=3).
+        //
+        //   4x3:
+        //   Row 0: Src(R,↓)  .     Src(B,↓) .
+        //   Row 1: Bnd      Tgt(Y)  Bnd    Tgt(B)
+        //   Row 2:  .       Src(G,↑)  .      .
+        //   R: ↓Bnd(0,1) rot=0→Right→Tgt(Y). G: ↑Tgt(Y). R|G=Y ✓
+        //   B: ↓Bnd(2,1) rot=0→Right→Tgt(B). B alone ✓
+        //   Trap: Bnd(2,1) rot=3→Left→Tgt(Y). B contaminates → White ✗
+        //   Bnd(0,1): start 3→0, 1 click. Bnd(2,1): start 3→0, 1 click.
+        //   Total: 2 moves.
+        // ================================================================
+        private static LevelDefinition Level36()
+        {
+            return new LevelDefinition
+            {
+                Id = "36", Name = "Wrong Turn", Width = 4, Height = 3,
+                ParMoves = 2, ParTimeSeconds = 15f,
+                Tiles = new[]
+                {
+                    Src(0, 0, LightColor.Red, Direction.Down),
+                    Src(2, 0, LightColor.Blue, Direction.Down),
+                    Bnd(0, 1, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Tgt(1, 1, LightColor.Yellow),
+                    Bnd(2, 1, 3),  // needs rot=0 → 1 click (Down→Right to Blue tgt)
+                    Tgt(3, 1, LightColor.Blue),
+                    Src(1, 2, LightColor.Green, Direction.Up),
+                }
+            };
+        }
+
+        // ================================================================
+        // Level 37: "Cyan Corridor" — G+B=Cyan target with Red trap.
+        //   5x3.
+        //   Row 0: Src(G,→) Str . Str Src(R,←)
+        //   Row 1: . . Tgt(C) . .
+        //   Row 2: Src(B,→) Str . . .
+        //   G→Str(1,0)→ needs to go down to Tgt(C,2,1). Use Bend.
+        //   Redesign:
+        //   Row 0: Src(G,↓) . Src(R,↓)
+        //   Row 1: Bnd Tgt(C) Bnd
+        //   Row 2: . Src(B,↑) Tgt(R)
+        //   G: ↓Bnd(0,1) rot=0→Right→Tgt(C). B: ↑Tgt(C). G|B=Cyan ✓
+        //   R: ↓Bnd(2,1) rot=0→Right→off board (width=3)? No. Need rot for Right to work.
+        //   Actually width=3, so (2,1) Right → (3,1) off board.
+        //   Make it 4x3:
+        //   Row 0: Src(G,↓) . Src(R,↓) .
+        //   Row 1: Bnd Tgt(C) Bnd Tgt(R)
+        //   Row 2: . Src(B,↑) . .
+        //   Same as Level 36 pattern but with different colors.
+        //   G: ↓Bnd(0,1)→Right→Tgt(C). B: ↑Tgt(C). G|B=C ✓
+        //   R: ↓Bnd(2,1)→Right→Tgt(R). R alone ✓
+        //   Trap: Bnd(2,1) rot=3→Left→Tgt(C). R contaminates → White ✗
+        //   Total: 2 moves.
+        //   Too similar to 36. Add complexity.
+        //
+        //   5x3 with straights:
+        //   Row 0: Src(G,→) Str Bnd . .
+        //   Row 1: . . Str . .
+        //   Row 2: Src(R,→) Str Bnd Str Tgt(C)
+        //   Plus Src(B,↑) at (2,3)? No, height=3.
+        //   Row 2 has Src(B) coming from below? Can't with 3 rows.
+        //
+        //   5x3:
+        //   Row 0: . Src(G,↓) . Src(R,↓) .
+        //   Row 1: . Str . Str .
+        //   Row 2: Tgt(C) Bnd . Bnd Tgt(R)
+        //   G: ↓Str(1,1)↓Bnd(1,2)→Left→Tgt(C,0,2). ✓ Bend Down→Left rot=3.
+        //   R: ↓Str(3,1)↓Bnd(3,2)→Right→Tgt(R,4,2). ✓ Bend Down→Right rot=0.
+        //   Plus Src(B,→) at (0,0):
+        //   B: →goes to (1,0) empty→(2,0) empty→(3,0) Src blocks? Sources don't route incoming.
+        //   B enters Src(R) at (3,0)? Src doesn't route, beam stops.
+        //   Better: Src(B,↓) at (0,0):
+        //   B: ↓(0,1) empty↓Tgt(C,0,2). B alone hits Cyan target → not Cyan! Wrong.
+        //   Need to block B from target or merge it correctly.
+        //
+        //   Actually: Tgt accepts from any direction. B hitting Cyan target = just Blue, not Cyan.
+        //   Target needs G|B=Cyan. If only B arrives, it's just Blue ≠ Cyan. Not satisfied. Good.
+        //   But if B AND G both arrive, G|B = Cyan ✓.
+        //   So Src(B) needs to also reach Tgt(C).
+        //   Src(B,→) at (0,0): →(1,0) empty, passes through→... needs tile to redirect down.
+        //
+        //   Let me keep it simpler:
+        //   5x3:
+        //   Row 0: Src(B,↓) Src(G,↓) . Src(R,↓) .
+        //   Row 1: Str Str . Str .
+        //   Row 2: Bnd Bnd . Bnd Tgt(R)
+        //   B: ↓Str(0,1)↓Bnd(0,2). G: ↓Str(1,1)↓Bnd(1,2).
+        //   Need B+G to merge at Tgt(C).
+        //   Bnd(0,2): Down→Right rot=0. → goes to (1,2) which is Bnd(1,2). Conflict.
+        //   This is getting complicated. Let me just do a clean design:
+        //
+        //   5x1: Src(G,→) Str Tgt(C) Str Src(B,←) with Src(R,↓) at (2,0)?
+        //   Can't — Tgt is at (2,0) and Src(R) would be same pos.
+        //   Just: 5x2:
+        //   Row 0: Src(G,→) Str Mir Str Src(R,←)
+        //   Row 1: . . Tgt(C) . Src(B,↑)
+        //   Mir(2,0): need to redirect R down? No, want G and B to merge.
+        //   G→Str(1,0)→Mir(2,0)↓Tgt(C,2,1). Mir Right→Down rot=0 ✓
+        //   B↑ from (4,1)→(4,0) Src(R) blocks. Doesn't work.
+        //
+        //   OK final simple design:
+        //   5x1: Src(G,→) Str Tgt(C) Str Src(B,←)
+        //   Src(R,↓) lurking above? Can't in 1 row. Just do 5x2:
+        //   Row 0: Src(R,↓) . . . .
+        //   Row 1: Str Src(G,→) Str Tgt(C) Src(B,←) — width conflict, need Str for B too
+        //
+        //   Just keep it clean — different from 36:
+        //   Row 0: Src(R,↓) Src(G,→) Str Str Src(B,←)
+        //   Row 1: Tgt(R) . . Tgt(C) .
+        //   R: ↓Tgt(R,0,1). Just R ✓
+        //   G: →Str(2,0)→Str(3,0)→Src(B) blocks. Need Str between.
+        //   Nope. G→(2,0)Str→(3,0)Str→(4,0) Src(B) doesn't route incoming. Stops.
+        //   B←(3,0)Str←... B goes Left from (4,0)→(3,0)Str horiz→(2,0)Str horiz→(1,0) Src(G) stops.
+        //   Both G and B pass through Str to Tgt? Str only passes one axis.
+        //   If Str at rot=1 (horiz), G→ passes Right and B← passes Left. Both reach each other's source.
+        //   But neither goes down to Tgt(C,3,1).
+        //
+        //   I'll just make a straightforward level:
+        // ================================================================
+        private static LevelDefinition Level37()
+        {
+            // G and B must merge at Cyan target. R has its own target.
+            // Trap: wrong bend rotation sends R into Cyan target → contaminates.
+            // 5x3:
+            // Row 0: Src(G,↓)  .  Src(R,↓)  .  Src(B,↓)
+            // Row 1: Bnd      Tgt(C) Str   Tgt(R) Bnd
+            // Row 2:  .        .     .       .     .
+            // G: ↓Bnd(0,1) rot=0→Right→Tgt(C,1,1). ✓
+            // B: ↓Bnd(4,1) rot=3→Left→Tgt(R,3,1)? NO! Needs to go to Tgt(C).
+            // Rearrange:
+            // Row 0: Src(G,↓) Src(R,↓)  .  Src(B,↓)  .
+            // Row 1: Bnd      Bnd     Tgt(C) Bnd   Tgt(R)
+            // G: ↓Bnd(0,1) rot=0→R→(1,1)Bnd... conflict.
+            //
+            // Simplest: 4x3
+            // Row 0: Src(G,↓)  .  Src(B,↓) Src(R,↓)
+            // Row 1: Bnd    Tgt(C)  Bnd    Tgt(R)
+            // G: ↓Bnd(0,1) rot=0→Right→Tgt(C). B: ↓Bnd(2,1) rot=3→Left→Tgt(C). G|B=Cyan ✓
+            // R: ↓Bnd(3,1)? No, (3,1) is Tgt(R). R↓ directly to Tgt(R). ✓
+            // Wait R source is at (3,0) going Down, hits Tgt(R,3,1) directly. No bend needed.
+            // Bnd(0,1): start 3→0, 1 click. Bnd(2,1): start 2→3, 1 click.
+            // Trap: Bnd(2,1) at rot=0→Right→Tgt(R). B contaminates R target → R|B=Purple ✗
+            //        Bnd(0,1) at rot=3→Left→off board. G doesn't reach Cyan ✗
+            // Total: 2 moves.
+            return new LevelDefinition
+            {
+                Id = "37", Name = "Cyan Corridor", Width = 4, Height = 2,
+                ParMoves = 2, ParTimeSeconds = 15f,
+                Tiles = new[]
+                {
+                    Src(0, 0, LightColor.Green, Direction.Down),
+                    Src(2, 0, LightColor.Blue, Direction.Down),
+                    Src(3, 0, LightColor.Red, Direction.Down),
+                    Bnd(0, 1, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Tgt(1, 1, LightColor.Cyan),   // needs G+B
+                    Bnd(2, 1, 2),  // needs rot=3 → 1 click (Down→Left)
+                    Tgt(3, 1, LightColor.Red),
+                }
+            };
+        }
+
+        // ================================================================
+        // Level 38: "Triple Threat" — Three sources, two merge targets.
+        //   R+G=Yellow at one target, R+B=Purple at another.
+        //   Single Red source splits to serve both.
+        //   5x3:
+        //   Row 0: Src(G,→) Str Tgt(Y) . .
+        //   Row 1: . . Str . .         — Red comes through here
+        //   Row 2: Src(B,→) Str Tgt(P) . .
+        //   Src(R,↓) at (2,0)? No, Tgt(Y) there.
+        //   Use splitter for Red:
+        //   Row 0: . Src(G,→) Tgt(Y) . .
+        //   Row 1: . . Split . .
+        //   Row 2: . Src(B,→) Tgt(P) . .
+        //   Src(R,↓) at (2, -1)? Can't. Put Red at top:
+        //   5x5:
+        //   Row 0: . . Src(R,↓) . .
+        //   Row 1: Src(G,→) Str Split Str Src(B,←) — wait can't, Split needs Down entry
+        //   This is overthought. Simple approach:
+        //   Row 0: Src(G,↓) Src(R,↓) Src(B,↓)
+        //   Row 1: Bnd Str Bnd
+        //   Row 2: Tgt(Y) . Tgt(P)
+        //   G: ↓Bnd(0,1) needs to reach Tgt(Y,0,2)? Bend Down→Left→off. Down→Right→(1,1).
+        //   No. Target is directly below at (0,2). Bend would redirect.
+        //   Use Str instead:
+        //   Row 1: Str Cross Str
+        //   G: ↓Str(0,1)↓Tgt(Y,0,2). R: ↓Cross(1,1) passes down.
+        //   Need R to go both left and right to reach both targets. Cross just passes through.
+        //   Use Splitter: R↓Split(1,1) rot=2→Left+Right.
+        //   Left→(0,1)Str... but Str passes vert only at rot=0. Beam Left won't pass.
+        //   Need (0,1) to accept from Right. Use empty cell — beam passes through empty.
+        //   Wait, empty cells pass beams through! So:
+        //   R↓Split(1,1) rot=2→Left to (0,1)→Tgt(Y,0,2)? No, Left continues Left to (-1,1) off board.
+        //   Splitter outputs go Left and Right from (1,1). Left beam goes to (0,1), which is an
+        //   empty cell, beam continues Left off board. Doesn't reach target below.
+        //
+        //   Need tiles to redirect. OK:
+        //   5x3:
+        //   Row 0: . Src(R,↓) . . .
+        //   Row 1: Tgt(Y) Split . . Tgt(P)
+        //   Row 2: Src(G,↑) . . . Src(B,↑)
+        //   Wait, Split(1,1) with R entering from Up. Split: Up at rot=0 → Left+Right.
+        //   Left→Tgt(Y,0,1). R alone → just Red. Need Green too.
+        //   G↑ from (0,2)→(0,1)Tgt(Y). G enters target from below. R enters from Right.
+        //   Both hit target: R|G = Yellow ✓
+        //   Right from Split→(2,1) empty→(3,1) empty→(4,1) Tgt(P). R alone → just Red ≠ Purple.
+        //   Need Blue. B↑ from (4,2)→(4,1) Tgt(P). R|B = Purple ✓
+        //   Split(1,1): Down entry goes Up through → need rot for Up entry splitting L+R.
+        //   Splitter local: Down→Left+Right. Beam from Up in world = entering from Up face.
+        //   localEntry = Up.RotateCW(-rot). At rot=2: Up.RotateCW(-2) = Down.
+        //   Down in local → Left+Right output. ✓ rot=2.
+        //   Start rot=0→2, 2 clicks. That's the only move needed?
+        //   No, targets also need G and B to arrive. G↑ goes through empty (0,1) to...
+        //   wait (0,1) is Tgt(Y). G enters target. ✓ B↑ enters (4,1) Tgt(P). ✓
+        //   So just 1 tile to rotate: Split needs rot=2. Start at 0 → 2 clicks.
+        //   But also need targets to require exact colors. If Split wrong rot, R goes wrong direction.
+        //   Total: 2 moves (2 clicks on splitter to reach rot=2).
+        //   Hmm, par=2 is a bit low. But the puzzle logic is good.
+        // ================================================================
+        private static LevelDefinition Level38()
+        {
+            return new LevelDefinition
+            {
+                Id = "38", Name = "Triple Threat", Width = 5, Height = 3,
+                ParMoves = 2, ParTimeSeconds = 15f,
+                Tiles = new[]
+                {
+                    Src(1, 0, LightColor.Red, Direction.Down),
+                    Tgt(0, 1, LightColor.Yellow),  // needs R+G
+                    new LevelDefinition.TileDef { Col=1, Row=1, Type=TileType.Splitter, Rotation=0, Locked=false },
+                    Tgt(4, 1, LightColor.Purple),  // needs R+B
+                    Src(0, 2, LightColor.Green, Direction.Up),
+                    Src(4, 2, LightColor.Blue, Direction.Up),
+                }
+            };
+        }
+
+        // ================================================================
+        // Level 39: "Contamination" — Two merge paths cross. Wrong routing
+        //   contaminates both targets.
+        //   5x3:
+        //   Row 0: Src(R,↓) . . . Src(B,↓)
+        //   Row 1: Bnd Str Mir Str Bnd
+        //   Row 2: . . Tgt(Y) . .
+        //   Plus Src(G,↑) at (2,2)... wait Tgt there. At (2,3)? Height=3 so row max=2.
+        //   5x4:
+        //   Row 0: Src(R,↓) . . . Src(B,↓)
+        //   Row 1: Bnd Str Cross Str Bnd
+        //   Row 2: . . Str . .
+        //   Row 3: . Tgt(Y) Tgt(P) Src(G,↑) .
+        //   Hmm, still messy. Simplify:
+        //   Concept: R and G must merge (Yellow), B and R must merge (Purple).
+        //   If you accidentally route G to Purple target → G|R|B some combo.
+        //
+        //   5x5:
+        //   Row 0: Src(R,↓) . Src(G,↓) . Src(B,↓)
+        //   Row 1: Str . Str . Str
+        //   Row 2: Mir Str Cross Str Mir
+        //   Row 3: . . Str . .
+        //   Row 4: Tgt(Y) . Tgt(P) . Tgt(B)
+        //   Hmm, this has 3 targets and is complex. Let me do something cleaner.
+        //
+        //   Clean design — two mergers feeding two targets:
+        //   7x3:
+        //   Row 0: Src(R,→) Str Mir . Mir Str Src(B,←)
+        //   Row 1: . . Str . Str . .
+        //   Row 2: . Src(G,→) Mrg . Mrg Src(G2)... can't have two Green.
+        //
+        //   OK, very simple:
+        //   5x3:
+        //   Row 0: Src(R,↓) Src(G,↓) . Src(G,↓)... can't duplicate.
+        //
+        //   Final clean design:
+        //   7x1 with two Mergers:
+        //   Src(R,→) Str Mrg Tgt(Y) Mrg Str Src(B,←)
+        //               ↑Src(G)        ↑Src(G)  — can't have same pos
+        //
+        //   I'll go with a 5x5 with crossing paths:
+        //   Row 0: Src(G,↓) . Src(R,↓) . Src(B,↓)
+        //   Row 1: Bnd Str Cross Str Bnd
+        //   Row 2: . . Str . .
+        //   Row 3: . . Bnd . .
+        //   Row 4: . Tgt(Y) . Tgt(P) .
+        //   G: ↓Bnd(0,1) rot=0→Right→Str(1,1)→Cross(2,1) horiz passes Right→Str(3,1)...
+        //   This is getting messy. Let me stop over-designing and just make it work.
+        // ================================================================
+        private static LevelDefinition Level39()
+        {
+            return new LevelDefinition
+            {
+                Id = "39", Name = "Contamination", Width = 5, Height = 3,
+                ParMoves = 6, ParTimeSeconds = 30f,
+                Tiles = new[]
+                {
+                    // Sources at top
+                    Src(0, 0, LightColor.Red, Direction.Down),
+                    Src(2, 0, LightColor.Green, Direction.Down),
+                    Src(4, 0, LightColor.Blue, Direction.Down),
+
+                    // Row 1: R bends right, G splits L+R, B bends left
+                    Str(0, 1, 1),  // needs rot=0 → 1 click
+                    Str(4, 1, 1),  // needs rot=0 → 1 click
+
+                    // Row 2: R bends right to Yellow, Splitter sends G both ways, B bends left to Cyan
+                    Bnd(0, 2, 3),   // needs rot=0 → 1 click (Down→Right to Yellow tgt)
+                    Tgt(1, 2, LightColor.Yellow),   // needs R+G
+                    new LevelDefinition.TileDef { Col=2, Row=2, Type=TileType.Splitter, Rotation=0, Locked=false },
+                    Tgt(3, 2, LightColor.Cyan),     // needs G+B
+                    Bnd(4, 2, 2),   // needs rot=3 → 1 click (Down→Left to Cyan tgt)
+                    // G↓ through empty (2,1)→Split(2,2) rot=2: Down→L+R
+                    // L→Tgt(Y,1,2): G. R→Tgt(C,3,2): G.
+                    // R↓Str(0,1)↓Bnd(0,2)→Tgt(Y): R. R|G=Yellow ✓
+                    // B↓Str(4,1)↓Bnd(4,2)→Tgt(C): B. G|B=Cyan ✓
+                    // Trap: wrong Bnd rot sends R/B to wrong target → contamination
+                    // Split(2,2): start 0→2, 2 clicks.
+                }
+            };
+        }
+
+        // ================================================================
+        // Level 40: "White Out" — Three colors must merge to White.
+        //   Trap: merging only two gives wrong color.
+        //   Similar to Level 27 but with wrong-merge trap.
+        //   7x1: Src(R,→) Str Str Tgt(W) Str Str Src(B,←)
+        //   Plus Src(G,↑) below target.
+        //   7x2:
+        //   Row 0: Src(R,→) Str Str Tgt(W) Str Str Src(B,←)
+        //   Row 1: . . . Src(G,↑) . . .
+        //   Str all start vert(0), need horiz(1). 4 clicks.
+        //   G↑→Tgt(W,3,0). R+G+B = White ✓
+        //   Trap: if only 2 straights aligned, partial color reaches target.
+        //   Total: 4 moves.
+        // ================================================================
+        private static LevelDefinition Level40()
+        {
+            return new LevelDefinition
+            {
+                Id = "40", Name = "White Out", Width = 7, Height = 2,
+                ParMoves = 4, ParTimeSeconds = 20f,
+                Tiles = new[]
+                {
+                    Src(0, 0, LightColor.Red, Direction.Right),
+                    Str(1, 0, 0),  // needs rot=1 → 1 click
+                    Str(2, 0, 0),  // needs rot=1 → 1 click
+                    Tgt(3, 0, LightColor.White),
+                    Str(4, 0, 0),  // needs rot=1 → 1 click
+                    Str(5, 0, 0),  // needs rot=1 → 1 click
+                    Src(6, 0, LightColor.Blue, Direction.Left),
+                    Src(3, 1, LightColor.Green, Direction.Up),
+                }
+            };
+        }
+
+        // ================================================================
+        // Level 41: "Merge Maze" — Complex routing with two merge targets.
+        //   Red+Green=Yellow and Green+Blue=Cyan. Green must reach both
+        //   targets (via splitter). Wrong splitter rotation sends Green
+        //   to only one target.
+        //   7x3:
+        //   Row 0: Src(R,→) Str Tgt(Y) . Tgt(C) Str Src(B,←)
+        //   Row 1: . . . Split . . .
+        //   Row 2: . . . Src(G,↑) . . .
+        //   G↑→Split(3,1). Split needs rot to send Left+Right.
+        //   Up entry at rot=2: local = Down → outputs Left+Right. ✓
+        //   Left→(2,1) empty→(1,1) empty→(0,1) empty off? No, goes to Tgt(Y,2,0)?
+        //   No, Left beam goes horizontally Left, not up to row 0.
+        //   Need to redirect up. Add bends:
+        //   7x3:
+        //   Row 0: Src(R,→) Str Tgt(Y) . Tgt(C) Str Src(B,←)
+        //   Row 1: . . Bnd Split Bnd . .
+        //   Row 2: . . . Src(G,↑) . . .
+        //   G↑→Split(3,1) rot=2→Left+Right.
+        //   Left→Bnd(2,1). Bend: Left at rot=... need Up. Left→Up at rot=2.
+        //   ↑→Tgt(Y,2,0). ✓ R also reaches Tgt(Y) via Str(1,0) horiz.
+        //   Right→Bnd(4,1). Bend: Right→Up at rot=1. ↑→Tgt(C,4,0). ✓
+        //   B reaches Tgt(C) via Str(5,0) horiz.
+        //   R|G=Yellow ✓, G|B=Cyan ✓
+        //   Str(1,0)(5,0): start 0→1, 2 clicks.
+        //   Bnd(2,1): start 0→2, 2 clicks (Left→Up).
+        //   Split(3,1): start 0→2, 2 clicks.
+        //   Bnd(4,1): start 0→1, 1 click (Right→Up).
+        //   Total: 2+2+2+1 = 7 moves.
+        //   Trap: wrong Split rot sends G one direction only.
+        //   Wrong Bend rot sends G sideways instead of up.
+        // ================================================================
+        private static LevelDefinition Level41()
+        {
+            return new LevelDefinition
+            {
+                Id = "41", Name = "Merge Maze", Width = 7, Height = 3,
+                ParMoves = 7, ParTimeSeconds = 35f,
+                Tiles = new[]
+                {
+                    Src(0, 0, LightColor.Red, Direction.Right),
+                    Str(1, 0, 0),  // needs rot=1 → 1 click
+                    Tgt(2, 0, LightColor.Yellow),  // needs R+G
+                    Tgt(4, 0, LightColor.Cyan),    // needs G+B
+                    Str(5, 0, 0),  // needs rot=1 → 1 click
+                    Src(6, 0, LightColor.Blue, Direction.Left),
+                    Bnd(2, 1, 0),  // needs rot=2 → 2 clicks (Left→Up)
+                    new LevelDefinition.TileDef { Col=3, Row=1, Type=TileType.Splitter, Rotation=0, Locked=false },
+                    Bnd(4, 1, 0),  // needs rot=1 → 1 click (Right→Up)
+                    Src(3, 2, LightColor.Green, Direction.Up),
+                }
+            };
+        }
+
+        // ================================================================
+        // Level 42: "Prism Master" — Grand color-merge finale.
+        //   All three primary colors, two merge targets + one pure target.
+        //   Merger combines R+B=Purple. Green independent. Yellow from separate path.
+        //   9x3:
+        //   Row 0: Src(R,↓) . Src(G,↓) . . . Src(B,↓) . .
+        //   Row 1: Bnd Str Bnd Str Tgt(Y) . Bnd Str Tgt(P)
+        //   Row 2: . . . Src(R2)... can't reuse.
+        //
+        //   Simpler grand finale:
+        //   7x3 with Merger:
+        //   Row 0: Src(R,↓) . Tgt(P) Src(G,↓) Tgt(Y) . Src(B,↓)
+        //   Row 1: Bnd Str Mrg . Mrg Str Bnd
+        //   Row 2: . . . . . . .
+        //   R: ↓Bnd(0,1) rot=0→Right→Str(1,1)→Mrg(2,1) from Left.
+        //   B: ↓Bnd(6,1) rot=3→Left→Str(5,1)→Mrg(4,1) from Right.
+        //   Need another source for each merger's other input.
+        //
+        //   Actually: Mrg(2,1) needs Left+Right→Up. R from Left, need something from Right.
+        //   G: ↓(3,1) empty passes through. But we need G to go to merger...
+        //
+        //   Better layout:
+        //   Row 0: Src(R,↓) . Tgt(P) . Tgt(Y) . Src(B,↓)
+        //   Row 1: Bnd Str Mrg Str Mrg Str Bnd
+        //   Mrg(2,1): R from Left, B from Right? B needs to travel all the way.
+        //   At (3,1) Str horiz, B from Bnd(6,1) goes Left through Str(5,1)→Mrg(4,1).
+        //   But then what enters Mrg(2,1) from Right? Need separate source.
+        //
+        //   Final: add Green source between the mergers.
+        //   Row 0: Src(R,↓)  .  Tgt(P) Src(G,↓) Tgt(Y)  .  Src(B,↓)
+        //   Row 1: Bnd  Str  Mrg  Split  Mrg  Str  Bnd
+        //   G: ↓Split(3,1). Split sends Left+Right.
+        //   Left→Mrg(2,1). Right→Mrg(4,1).
+        //   R→Bnd(0,1)→Str(1,1)→Mrg(2,1): R from Left, G from Right.
+        //   Mrg(2,1) rot=0: Left+Right→Up. R|G=Yellow? No, we want Purple there.
+        //   Swap targets: Tgt(Y) at (2,0), Tgt(P) at (4,0).
+        //   R+G=Yellow at (2,0) ✓. G+B at (4,0)=Cyan? Want Purple=R+B.
+        //   But Green goes to both mergers, not Red to both.
+        //
+        //   Make it: R goes to left merger, B goes to right merger,
+        //   G splits to both. R+G=Yellow, G+B=Cyan. Two targets: Y and C.
+        //   Add a third pure target for fun? Keep it 2 targets:
+        //   Row 0: Src(R,↓)  .  Tgt(Y) Src(G,↓) Tgt(C)  .  Src(B,↓)
+        //   Row 1: Bnd  Str  Mrg  Split  Mrg  Str  Bnd
+        //   R: ↓Bnd(0,1) rot=0→R→Str(1,1)→Mrg(2,1) from Left.
+        //   G: ↓Split(3,1) rot=2: Up→L+R.
+        //     L→Mrg(2,1) from Right. R→Mrg(4,1) from Left.
+        //   B: ↓Bnd(6,1) rot=3→L→Str(5,1)→Mrg(4,1) from Right.
+        //   Mrg(2,1) rot=0: L(R)+R(G)→Up=Yellow ↑Tgt(Y,2,0) ✓
+        //   Mrg(4,1) rot=0: L(G)+R(B)→Up=Cyan ↑Tgt(C,4,0) ✓
+        //
+        //   Moves:
+        //   Bnd(0,1): start 3→0, 1 click.
+        //   Str(1,1): start 0→1, 1 click.
+        //   Mrg(2,1): start at some rot→0. If start 2→2 clicks to reach 0. Start at 2→0=2 clicks.
+        //   Split(3,1): start 0→2, 2 clicks.
+        //   Mrg(4,1): start 2→0, 2 clicks.
+        //   Str(5,1): start 0→1, 1 click.
+        //   Bnd(6,1): start 2→3, 1 click.
+        //   Total: 1+1+2+2+2+1+1 = 10 moves. ✓
+        //   Trap: wrong Split/Mrg rotation sends colors to wrong targets.
+        // ================================================================
+        private static LevelDefinition Level42()
+        {
+            return new LevelDefinition
+            {
+                Id = "42", Name = "Prism Master", Width = 7, Height = 2,
+                ParMoves = 10, ParTimeSeconds = 50f,
+                Tiles = new[]
+                {
+                    Src(0, 0, LightColor.Red, Direction.Down),
+                    Tgt(2, 0, LightColor.Yellow),   // R+G
+                    Src(3, 0, LightColor.Green, Direction.Down),
+                    Tgt(4, 0, LightColor.Cyan),      // G+B
+                    Src(6, 0, LightColor.Blue, Direction.Down),
+
+                    Bnd(0, 1, 3),  // needs rot=0 → 1 click (Down→Right)
+                    Str(1, 1, 0),  // needs rot=1 → 1 click
+                    Mrg(2, 1, 2),  // needs rot=0 → 2 clicks (L+R→Up)
+                    new LevelDefinition.TileDef { Col=3, Row=1, Type=TileType.Splitter, Rotation=0, Locked=false },
+                    Mrg(4, 1, 2),  // needs rot=0 → 2 clicks (L+R→Up)
+                    Str(5, 1, 0),  // needs rot=1 → 1 click
+                    Bnd(6, 1, 2),  // needs rot=3 → 1 click (Down→Left)
                 }
             };
         }
