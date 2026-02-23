@@ -3,6 +3,7 @@ using UnityEngine;
 using PrismPulse.Core.Board;
 using PrismPulse.Core.Colors;
 using PrismPulse.Core.Puzzle;
+using PrismPulse.Gameplay.Audio;
 using PrismPulse.Gameplay.Effects;
 using PrismPulse.Gameplay.Levels;
 using PrismPulse.Gameplay.UI;
@@ -66,6 +67,7 @@ namespace PrismPulse.Gameplay
 
             _boardView.Initialize(_boardState);
             _boardView.OnTileRotated = HandleTileRotated;
+            FitCameraToBoard(level.Width, level.Height);
 
             if (_hud != null)
                 _hud.SetLevelInfo($"{level.Id}. {level.Name}", level.ParMoves, level.ParTimeSeconds);
@@ -74,6 +76,8 @@ namespace PrismPulse.Gameplay
                 _winScreen.Hide();
 
             TraceAndRender();
+
+            if (SoundManager.Instance != null) SoundManager.Instance.PlayLevelStart();
         }
 
         public void NextLevel()
@@ -112,9 +116,34 @@ namespace PrismPulse.Gameplay
                 var levelColors = GetLevelColors();
                 ParticleEffectFactory.CreatePuzzleSolvedEffect(Vector3.zero, levelColors);
 
+                if (SoundManager.Instance != null) SoundManager.Instance.PlaySolve();
+                HapticFeedback.Success();
+
                 if (_winScreen != null)
                     _winScreen.Show(stars, _moveCount, time, hasNext);
             }
+        }
+
+        private void FitCameraToBoard(int boardWidth, int boardHeight)
+        {
+            var cam = Camera.main;
+            if (cam == null) return;
+
+            float tileSpacing = 1.15f; // tileSize + gap
+            float boardWorldWidth = boardWidth * tileSpacing;
+            float boardWorldHeight = boardHeight * tileSpacing;
+
+            float screenAspect = (float)Screen.width / Screen.height;
+
+            // Account for HUD space at top (~15% of screen) and bottom padding
+            float verticalPadding = 1.8f;
+            float horizontalPadding = 1.2f;
+
+            // Orthographic size is half the vertical extent
+            float sizeForHeight = (boardWorldHeight * 0.5f) + verticalPadding;
+            float sizeForWidth = ((boardWorldWidth * 0.5f) + horizontalPadding) / screenAspect;
+
+            cam.orthographicSize = Mathf.Max(sizeForHeight, sizeForWidth);
         }
 
         private Color[] GetLevelColors()

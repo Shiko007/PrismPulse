@@ -109,29 +109,56 @@ namespace PrismPulse.Gameplay.UI
 
             canvasGO.AddComponent<UnityEngine.UI.GraphicRaycaster>();
 
+            // Safe area container — respects notch/Dynamic Island/rounded corners
+            var safeAreaGO = new GameObject("SafeArea");
+            safeAreaGO.transform.SetParent(canvasGO.transform, false);
+            var safeRect = safeAreaGO.AddComponent<RectTransform>();
+            safeRect.anchorMin = Vector2.zero;
+            safeRect.anchorMax = Vector2.one;
+            safeRect.sizeDelta = Vector2.zero;
+            ApplySafeArea(safeRect, canvasGO.GetComponent<RectTransform>());
+
             // Level name — top center
-            _levelNameText = CreateText(canvasGO.transform, "LevelName", "",
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -40f),
+            _levelNameText = CreateText(safeRect, "LevelName", "",
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -20f),
                 fontSize: 42, alignment: TextAlignmentOptions.Center);
             _levelNameText.color = new Color(0.7f, 0.8f, 1f);
 
             // Par info — below level name
-            _parText = CreateText(canvasGO.transform, "Par", "",
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -90f),
+            _parText = CreateText(safeRect, "Par", "",
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -65f),
                 fontSize: 24, alignment: TextAlignmentOptions.Center);
             _parText.color = new Color(0.5f, 0.5f, 0.6f);
 
             // Moves counter — top left
-            _movesText = CreateText(canvasGO.transform, "Moves", "Moves: 0",
-                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(30f, -40f),
+            _movesText = CreateText(safeRect, "Moves", "Moves: 0",
+                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -20f),
                 fontSize: 32, alignment: TextAlignmentOptions.Left);
             _movesText.color = Color.white;
 
             // Timer — top right
-            _timerText = CreateText(canvasGO.transform, "Timer", "0s",
-                new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-30f, -40f),
+            _timerText = CreateText(safeRect, "Timer", "0s",
+                new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-20f, -20f),
                 fontSize: 32, alignment: TextAlignmentOptions.Right);
             _timerText.color = Color.white;
+        }
+
+        private static void ApplySafeArea(RectTransform rect, RectTransform canvasRect)
+        {
+            var safeArea = Screen.safeArea;
+            var canvasSize = canvasRect.sizeDelta;
+
+            // If canvas size is zero (ScreenSpaceOverlay), use screen dimensions
+            if (canvasSize.x <= 0) canvasSize.x = Screen.width;
+            if (canvasSize.y <= 0) canvasSize.y = Screen.height;
+
+            var anchorMin = new Vector2(safeArea.x / Screen.width, safeArea.y / Screen.height);
+            var anchorMax = new Vector2(safeArea.xMax / Screen.width, safeArea.yMax / Screen.height);
+
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
         }
 
         private TextMeshProUGUI CreateText(Transform parent, string name, string text,

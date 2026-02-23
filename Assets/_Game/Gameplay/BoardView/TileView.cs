@@ -17,15 +17,15 @@ namespace PrismPulse.Gameplay.BoardView
 
         private GridPosition _gridPosition;
         private TileType _tileType;
+        private LightColor _storedRequiredColor;
         private bool _isAnimating;
         private MeshRenderer _meshRenderer;
         private MeshRenderer _indicatorRenderer;
 
-        private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
-        private MaterialPropertyBlock _propBlock;
-        private MaterialPropertyBlock _indicatorPropBlock;
+        private Material _tileMat;
+        private Material _indicatorMat;
 
         public GridPosition GridPosition => _gridPosition;
 
@@ -33,16 +33,20 @@ namespace PrismPulse.Gameplay.BoardView
         {
             _gridPosition = pos;
             _tileType = state.Type;
-            _propBlock = new MaterialPropertyBlock();
-            _indicatorPropBlock = new MaterialPropertyBlock();
+            _storedRequiredColor = state.RequiredColor;
 
-            // Auto-find renderers
+            // Auto-find renderers and create material instances (needed for SRP Batcher compat)
             _meshRenderer = GetComponent<MeshRenderer>();
+            if (_meshRenderer != null)
+                _tileMat = _meshRenderer.material; // creates instance
 
-            // Find indicator child renderer
             var indicatorTransform = transform.Find("Indicator");
             if (indicatorTransform != null)
+            {
                 _indicatorRenderer = indicatorTransform.GetComponent<MeshRenderer>();
+                if (_indicatorRenderer != null)
+                    _indicatorMat = _indicatorRenderer.material;
+            }
 
             // Set initial rotation
             transform.localRotation = Quaternion.Euler(0f, 0f, -state.Rotation * 90f);
@@ -54,32 +58,32 @@ namespace PrismPulse.Gameplay.BoardView
         {
             if (_meshRenderer == null) return;
 
+            // All colors go through _BaseColor on Unlit shader.
+            // HDR values (>1.0) will glow via bloom post-processing.
             Color tileColor;
-            Color emissionColor = Color.black;
             Color indicatorColor = Color.white;
             bool showIndicator = true;
 
             switch (state.Type)
             {
                 case TileType.Source:
-                    tileColor = LightColorMap.ToUnityColor(state.SourceColor) * 0.6f;
+                    // Source tiles glow with their color (HDR for bloom)
+                    tileColor = LightColorMap.ToUnityColor(state.SourceColor) * 1.5f;
                     tileColor.a = 1f;
-                    emissionColor = LightColorMap.ToEmissionColor(state.SourceColor, 3f);
-                    indicatorColor = LightColorMap.ToEmissionColor(state.SourceColor, 4f);
+                    indicatorColor = LightColorMap.ToUnityColor(state.SourceColor) * 4f;
                     break;
 
                 case TileType.Target:
                     tileColor = LightColorMap.ToUnityColor(state.RequiredColor) * 0.25f;
                     tileColor.a = 1f;
-                    indicatorColor = LightColorMap.ToUnityColor(state.RequiredColor) * 0.6f;
-                    // Target indicator: show a dot/circle shape (for now, shorter bar)
+                    indicatorColor = LightColorMap.ToUnityColor(state.RequiredColor) * 1.5f;
                     if (_indicatorRenderer != null)
                         _indicatorRenderer.transform.localScale = new Vector3(3f, 0.6f, 1f);
                     break;
 
                 case TileType.DarkAbsorber:
                     tileColor = new Color(0.08f, 0.04f, 0.04f, 1f);
-                    indicatorColor = new Color(0.8f, 0.15f, 0.15f) * 1.2f;
+                    indicatorColor = new Color(0.8f, 0.15f, 0.15f) * 1.5f;
                     if (_indicatorRenderer != null)
                         CreateDarkAbsorberIndicator();
                     break;
@@ -91,25 +95,19 @@ namespace PrismPulse.Gameplay.BoardView
 
                 case TileType.Straight:
                     tileColor = new Color(0.12f, 0.14f, 0.22f, 1f);
-                    indicatorColor = new Color(0.5f, 0.7f, 1f) * 2f; // bright blue-white line
-                    // Tall thin bar shows the passthrough axis
+                    indicatorColor = new Color(0.5f, 0.7f, 1f) * 2f;
                     break;
 
                 case TileType.Cross:
                     tileColor = new Color(0.12f, 0.14f, 0.22f, 1f);
                     indicatorColor = new Color(0.5f, 0.7f, 1f) * 2f;
-                    // Cross: show a + shape by adding a second bar
                     if (_indicatorRenderer != null)
-                    {
-                        // Make the vertical bar, and we'll add a horizontal bar as second child
                         CreateCrossIndicator();
-                    }
                     break;
 
                 case TileType.Bend:
                     tileColor = new Color(0.12f, 0.14f, 0.22f, 1f);
                     indicatorColor = new Color(0.5f, 0.7f, 1f) * 2f;
-                    // Bend: show an L-shape
                     if (_indicatorRenderer != null)
                         CreateBendIndicator();
                     break;
@@ -142,36 +140,26 @@ namespace PrismPulse.Gameplay.BoardView
             }
 
             // Apply tile background color
-            _meshRenderer.GetPropertyBlock(_propBlock);
-            _propBlock.SetColor(BaseColorId, tileColor);
-            _propBlock.SetColor(EmissionColorId, emissionColor);
-            _meshRenderer.SetPropertyBlock(_propBlock);
+            if (_tileMat != null)
+                _tileMat.SetColor(BaseColorId, tileColor);
 
-            // Apply indicator color and visibility to all indicator renderers
+            // Apply indicator color and visibility
             if (_indicatorRenderer != null)
             {
                 _indicatorRenderer.gameObject.SetActive(showIndicator);
                 if (showIndicator)
                 {
-                    // Apply to primary indicator
-                    _indicatorRenderer.GetPropertyBlock(_indicatorPropBlock);
-                    _indicatorPropBlock.SetColor(BaseColorId, indicatorColor);
-                    _indicatorPropBlock.SetColor(EmissionColorId, indicatorColor);
-                    _indicatorRenderer.SetPropertyBlock(_indicatorPropBlock);
+                    if (_indicatorMat != null)
+                        _indicatorMat.SetColor(BaseColorId, indicatorColor);
 
-                    // Apply to any extra indicator children (Cross +, Bend L, etc.)
+                    // Apply to extra indicator children (Cross +, Bend L, etc.)
                     var parent = _indicatorRenderer.transform.parent;
                     for (int i = 0; i < parent.childCount; i++)
                     {
                         var child = parent.GetChild(i);
                         var childRenderer = child.GetComponent<MeshRenderer>();
                         if (childRenderer != null && childRenderer != _indicatorRenderer)
-                        {
-                            childRenderer.GetPropertyBlock(_indicatorPropBlock);
-                            _indicatorPropBlock.SetColor(BaseColorId, indicatorColor);
-                            _indicatorPropBlock.SetColor(EmissionColorId, indicatorColor);
-                            childRenderer.SetPropertyBlock(_indicatorPropBlock);
-                        }
+                            childRenderer.material.SetColor(BaseColorId, indicatorColor);
                     }
                 }
             }
@@ -179,9 +167,8 @@ namespace PrismPulse.Gameplay.BoardView
             // Locked non-source/target tiles: dim slightly
             if (state.Locked && state.Type != TileType.Source && state.Type != TileType.Target)
             {
-                _meshRenderer.GetPropertyBlock(_propBlock);
-                _propBlock.SetColor(BaseColorId, tileColor * 0.5f);
-                _meshRenderer.SetPropertyBlock(_propBlock);
+                if (_tileMat != null)
+                    _tileMat.SetColor(BaseColorId, tileColor * 0.5f);
             }
         }
 
@@ -215,21 +202,25 @@ namespace PrismPulse.Gameplay.BoardView
         /// </summary>
         public void SetBeamLit(bool lit, LightColor beamColor = LightColor.None)
         {
-            if (_meshRenderer == null || _propBlock == null) return;
-
-            _meshRenderer.GetPropertyBlock(_propBlock);
+            if (_tileMat == null) return;
 
             if (lit && _tileType != TileType.Source && _tileType != TileType.Empty)
             {
-                Color emission = LightColorMap.ToEmissionColor(beamColor, 1.5f);
-                _propBlock.SetColor(EmissionColorId, emission);
+                // Tint tile with beam color — visible and glows via bloom
+                Color beamUnity = LightColorMap.ToUnityColor(beamColor);
+                Color tinted = beamUnity * 0.6f;
+                tinted.a = 1f;
+                _tileMat.SetColor(BaseColorId, tinted);
             }
             else if (_tileType != TileType.Source)
             {
-                _propBlock.SetColor(EmissionColorId, Color.black);
+                // Restore default dark tile color
+                Color dark = _tileType == TileType.Target
+                    ? LightColorMap.ToUnityColor(_storedRequiredColor) * 0.25f
+                    : new Color(0.12f, 0.14f, 0.22f, 1f);
+                dark.a = 1f;
+                _tileMat.SetColor(BaseColorId, dark);
             }
-
-            _meshRenderer.SetPropertyBlock(_propBlock);
         }
 
         private void CreateCrossIndicator()

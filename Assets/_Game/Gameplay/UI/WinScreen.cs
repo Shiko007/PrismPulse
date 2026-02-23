@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using DG.Tweening;
+using PrismPulse.Gameplay.Audio;
 
 namespace PrismPulse.Gameplay.UI
 {
@@ -94,9 +95,18 @@ namespace PrismPulse.Gameplay.UI
 
             canvasGO.AddComponent<GraphicRaycaster>();
 
-            // Darkened background
+            // Darkened background (full screen, MUST be first child so buttons render on top)
             var bg = new GameObject("Background");
             bg.transform.SetParent(canvasGO.transform, false);
+
+            // Safe area container (after background so it renders on top)
+            var safeAreaGO = new GameObject("SafeArea");
+            safeAreaGO.transform.SetParent(canvasGO.transform, false);
+            var safeRect = safeAreaGO.AddComponent<RectTransform>();
+            safeRect.anchorMin = Vector2.zero;
+            safeRect.anchorMax = Vector2.one;
+            safeRect.sizeDelta = Vector2.zero;
+            ApplySafeArea(safeRect);
             var bgRect = bg.AddComponent<RectTransform>();
             bgRect.anchorMin = Vector2.zero;
             bgRect.anchorMax = Vector2.one;
@@ -104,9 +114,9 @@ namespace PrismPulse.Gameplay.UI
             var bgImage = bg.AddComponent<Image>();
             bgImage.color = new Color(0, 0, 0, 0.6f);
 
-            // Panel
+            // Panel (inside safe area)
             _panel = new GameObject("Panel");
-            _panel.transform.SetParent(canvasGO.transform, false);
+            _panel.transform.SetParent(safeAreaGO.transform, false);
             var panelRect = _panel.AddComponent<RectTransform>();
             panelRect.anchorMin = new Vector2(0.1f, 0.3f);
             panelRect.anchorMax = new Vector2(0.9f, 0.7f);
@@ -133,12 +143,31 @@ namespace PrismPulse.Gameplay.UI
             // Next button
             _nextButton = CreateButton(_panel.transform, "Next Level",
                 new Vector2(0.5f, 0.2f), new Color(0.2f, 0.7f, 0.4f));
-            _nextButton.onClick.AddListener(() => OnNextLevel?.Invoke());
+            _nextButton.onClick.AddListener(() =>
+            {
+                if (SoundManager.Instance != null) SoundManager.Instance.PlayButtonClick();
+                HapticFeedback.LightTap();
+                OnNextLevel?.Invoke();
+            });
 
             // Restart button
             _restartButton = CreateButton(_panel.transform, "Restart",
                 new Vector2(0.5f, 0.08f), new Color(0.3f, 0.3f, 0.4f));
-            _restartButton.onClick.AddListener(() => OnRestart?.Invoke());
+            _restartButton.onClick.AddListener(() =>
+            {
+                if (SoundManager.Instance != null) SoundManager.Instance.PlayButtonClick();
+                HapticFeedback.LightTap();
+                OnRestart?.Invoke();
+            });
+        }
+
+        private static void ApplySafeArea(RectTransform rect)
+        {
+            var safeArea = Screen.safeArea;
+            rect.anchorMin = new Vector2(safeArea.x / Screen.width, safeArea.y / Screen.height);
+            rect.anchorMax = new Vector2(safeArea.xMax / Screen.width, safeArea.yMax / Screen.height);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
         }
 
         private TextMeshProUGUI CreateText(Transform parent, string name, string text,

@@ -50,6 +50,10 @@ namespace PrismPulse.Gameplay
             SetSerializedField(gameManager, "_hud", hud);
             SetSerializedField(gameManager, "_winScreen", winScreen);
 
+            // Sound Manager
+            var soundGO = new GameObject("SoundManager");
+            soundGO.AddComponent<Audio.SoundManager>();
+
             // EventSystem — required for UI button clicks
             if (FindAnyObjectByType<EventSystem>() == null)
             {
@@ -79,6 +83,10 @@ namespace PrismPulse.Gameplay
             cam.backgroundColor = new Color(0.02f, 0.02f, 0.06f);
             cam.clearFlags = CameraClearFlags.SolidColor;
 
+            // Ensure AudioListener for sound playback
+            if (cam.GetComponent<AudioListener>() == null)
+                cam.gameObject.AddComponent<AudioListener>();
+
             // Ensure URP camera data
             var camData = cam.GetComponent<UniversalAdditionalCameraData>();
             if (camData == null)
@@ -106,30 +114,40 @@ namespace PrismPulse.Gameplay
 
         private Material CreateTileMaterial()
         {
-            // Use URP Lit shader for proper emission/bloom support
-            var shader = Shader.Find("Universal Render Pipeline/Lit");
-            if (shader == null)
-                shader = Shader.Find("Standard");
+            // Use Unlit — same as beams. Simpler, no lighting dependency,
+            // and SRP Batcher reliably picks up color changes on iOS/Metal.
+            // HDR colors (>1) trigger bloom for glow effects.
+            var shader = FindShader(
+                "Universal Render Pipeline/Unlit",
+                "Unlit/Color",
+                "Sprites/Default");
 
             var mat = new Material(shader);
-            mat.SetFloat("_Smoothness", 0.9f);
-            mat.SetFloat("_Metallic", 0.1f);
-            mat.EnableKeyword("_EMISSION");
-            mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
             return mat;
         }
 
         private Material CreateBeamMaterial()
         {
-            // Unlit material for beams — pure color, works great with bloom
-            var shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (shader == null)
-                shader = Shader.Find("Unlit/Color");
+            var shader = FindShader(
+                "Universal Render Pipeline/Unlit",
+                "Unlit/Color",
+                "Sprites/Default");
 
             var mat = new Material(shader);
-            // Enable HDR color for bloom to catch
             mat.SetColor("_BaseColor", Color.white * 3f);
             return mat;
+        }
+
+        private static Shader FindShader(params string[] names)
+        {
+            foreach (var name in names)
+            {
+                var shader = Shader.Find(name);
+                if (shader != null) return shader;
+            }
+            // Last resort — always exists
+            Debug.LogWarning("[BootstrapScene] No preferred shader found, using built-in fallback.");
+            return Shader.Find("Hidden/InternalErrorShader");
         }
 
         /// <summary>

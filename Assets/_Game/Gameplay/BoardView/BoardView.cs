@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 using DG.Tweening;
 using PrismPulse.Core.Board;
 using PrismPulse.Core.Colors;
+using PrismPulse.Gameplay.Audio;
 using PrismPulse.Gameplay.Effects;
 
 namespace PrismPulse.Gameplay.BoardView
@@ -116,6 +117,10 @@ namespace PrismPulse.Gameplay.BoardView
                 view.AnimateClick();
                 view.AnimateRotation(tile.Rotation);
                 view.UpdateVisual(tile);
+
+                if (SoundManager.Instance != null) SoundManager.Instance.PlayRotate();
+                HapticFeedback.LightTap();
+
                 OnTileRotated?.Invoke(pos);
             }
         }
@@ -161,6 +166,9 @@ namespace PrismPulse.Gameplay.BoardView
                         var worldPos = GridToWorldPosition(kvp.Key);
                         var color = LightColorMap.ToEmissionColor(kvp.Value, 2f);
                         ParticleEffectFactory.CreateTargetSatisfiedEffect(worldPos, color);
+
+                        if (SoundManager.Instance != null) SoundManager.Instance.PlayBeamConnect();
+                        HapticFeedback.MediumTap();
                     }
                 }
             }
