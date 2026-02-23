@@ -194,6 +194,26 @@ namespace PrismPulse.Gameplay.BoardView
             return transform.TransformPoint(new Vector3(worldX, worldY, 0f));
         }
 
+        public TileView GetTileView(GridPosition pos)
+        {
+            return _tileViews.TryGetValue(pos, out var view) ? view : null;
+        }
+
+        /// <summary>
+        /// Set a tile's rotation directly (for undo). Updates visual and animation.
+        /// </summary>
+        public void SetTileRotation(GridPosition pos, int rotation)
+        {
+            ref var tile = ref _boardState.GetTile(pos);
+            tile.Rotation = rotation;
+
+            if (_tileViews.TryGetValue(pos, out var view))
+            {
+                view.AnimateRotation(rotation);
+                view.UpdateVisual(tile);
+            }
+        }
+
         public void ClearBoard()
         {
             foreach (var kvp in _tileViews)

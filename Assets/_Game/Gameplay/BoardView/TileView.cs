@@ -188,6 +188,28 @@ namespace PrismPulse.Gameplay.BoardView
         }
 
         /// <summary>
+        /// Pulse animation to highlight this tile as a hint.
+        /// </summary>
+        public void AnimateHintPulse()
+        {
+            if (transform == null) return;
+            transform.DOComplete();
+            transform.DOPunchScale(Vector3.one * 0.15f, 0.4f, 4, 0.3f);
+
+            // Flash the tile bright briefly
+            if (_tileMat != null)
+            {
+                var originalColor = _tileMat.GetColor(BaseColorId);
+                _tileMat.SetColor(BaseColorId, Color.white * 2f);
+                DOTween.To(
+                    () => _tileMat.GetColor(BaseColorId),
+                    c => _tileMat.SetColor(BaseColorId, c),
+                    originalColor, 0.5f
+                ).SetEase(Ease.OutQuad);
+            }
+        }
+
+        /// <summary>
         /// Quick scale punch on click for tactile feedback.
         /// </summary>
         public void AnimateClick()

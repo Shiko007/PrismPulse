@@ -34,6 +34,10 @@ namespace PrismPulse.Gameplay
         private LevelDefinition[] _levels;
         private int _currentLevelIndex;
 
+        private readonly Stack<(GridPosition pos, int prevRotation)> _undoStack =
+            new Stack<(GridPosition, int)>();
+        private Dictionary<GridPosition, int> _solution;
+
         private void Awake()
         {
             _beamTracer = new BeamTracer();
@@ -45,7 +49,12 @@ namespace PrismPulse.Gameplay
             _levels = BuiltInLevels.All;
             _currentLevelIndex = 0;
 
-            if (_hud != null) _hud.Initialize();
+            if (_hud != null)
+            {
+                _hud.Initialize();
+                _hud.OnUndo = UndoLastMove;
+                _hud.OnHint = ShowHint;
+            }
 
             if (_winScreen != null)
             {
@@ -117,6 +126,9 @@ namespace PrismPulse.Gameplay
             _boardState = level.ToBoardState();
             _moveCount = 0;
             _puzzleSolved = false;
+            _undoStack.Clear();
+            _solution = PuzzleSolver.Solve(_boardState);
+            if (_hud != null) _hud.SetUndoInteractable(false);
 
             _boardView.Initialize(_boardState);
             _boardView.OnTileRotated = HandleTileRotated;
@@ -148,6 +160,12 @@ namespace PrismPulse.Gameplay
         {
             if (_puzzleSolved) return;
 
+            // Push previous rotation for undo (current rotation is already incremented)
+            int currentRotation = _boardState.GetTile(pos).Rotation;
+            int prevRotation = (currentRotation + 3) % 4;
+            _undoStack.Push((pos, prevRotation));
+            if (_hud != null) _hud.SetUndoInteractable(true);
+
             _moveCount++;
             if (_hud != null) _hud.OnMove(_moveCount);
 
@@ -176,6 +194,46 @@ namespace PrismPulse.Gameplay
 
                 if (_winScreen != null)
                     _winScreen.Show(stars, _moveCount, time, hasNext);
+            }
+        }
+
+        public void UndoLastMove()
+        {
+            if (_puzzleSolved || _undoStack.Count == 0) return;
+
+            var (pos, prevRotation) = _undoStack.Pop();
+            _boardView.SetTileRotation(pos, prevRotation);
+
+            _moveCount--;
+            if (_hud != null)
+            {
+                _hud.OnMove(_moveCount);
+                _hud.SetUndoInteractable(_undoStack.Count > 0);
+            }
+
+            if (SoundManager.Instance != null) SoundManager.Instance.PlayRotate();
+            HapticFeedback.LightTap();
+
+            TraceAndRender();
+        }
+
+        public void ShowHint()
+        {
+            if (_puzzleSolved) return;
+
+            // Re-solve from current state so the hint is always optimal
+            _solution = PuzzleSolver.Solve(_boardState);
+            if (_solution == null) return;
+
+            var hint = PuzzleSolver.GetNextHint(_boardState, _solution);
+            if (hint == null) return;
+
+            var tileView = _boardView.GetTileView(hint.Value.pos);
+            if (tileView != null)
+            {
+                tileView.AnimateHintPulse();
+                if (SoundManager.Instance != null) SoundManager.Instance.PlayBeamConnect();
+                HapticFeedback.MediumTap();
             }
         }
 
