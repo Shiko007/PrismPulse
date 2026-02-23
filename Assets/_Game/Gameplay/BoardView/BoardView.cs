@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using DG.Tweening;
 using PrismPulse.Core.Board;
@@ -64,6 +65,10 @@ namespace PrismPulse.Gameplay.BoardView
 
         private void HandleClick(Vector2 screenPos)
         {
+            // Don't interact with tiles when UI is on top (win screen, menu, etc.)
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+                return;
+
             var ray = _cam.ScreenPointToRay(screenPos);
             if (Physics.Raycast(ray, out var hit, 100f))
             {
@@ -189,7 +194,7 @@ namespace PrismPulse.Gameplay.BoardView
             return transform.TransformPoint(new Vector3(worldX, worldY, 0f));
         }
 
-        private void ClearBoard()
+        public void ClearBoard()
         {
             foreach (var kvp in _tileViews)
             {

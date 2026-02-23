@@ -49,6 +49,9 @@ namespace PrismPulse.Gameplay.UI
             _running = false;
         }
 
+        public void Show() { if (_canvas != null) _canvas.gameObject.SetActive(true); }
+        public void Hide() { if (_canvas != null) _canvas.gameObject.SetActive(false); }
+
         public float ElapsedTime => _elapsedTime;
         public int MoveCount => _moveCount;
 

@@ -43,6 +43,10 @@ namespace PrismPulse.Gameplay
             var winGO = new GameObject("WinScreen");
             var winScreen = winGO.AddComponent<UI.WinScreen>();
 
+            // Main Menu
+            var menuGO = new GameObject("MainMenu");
+            var mainMenu = menuGO.AddComponent<UI.MainMenu>();
+
             // Game Manager
             var managerGO = new GameObject("GameManager");
             var gameManager = managerGO.AddComponent<GameManager>();
@@ -50,6 +54,7 @@ namespace PrismPulse.Gameplay
             SetSerializedField(gameManager, "_beamRenderer", beamRenderer);
             SetSerializedField(gameManager, "_hud", hud);
             SetSerializedField(gameManager, "_winScreen", winScreen);
+            SetSerializedField(gameManager, "_mainMenu", mainMenu);
 
             // Sound Manager
             var soundGO = new GameObject("SoundManager");

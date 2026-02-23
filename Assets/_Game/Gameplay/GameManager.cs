@@ -21,6 +21,7 @@ namespace PrismPulse.Gameplay
         [SerializeField] private BeamRenderer.BeamRenderer _beamRenderer;
         [SerializeField] private GameHUD _hud;
         [SerializeField] private WinScreen _winScreen;
+        [SerializeField] private MainMenu _mainMenu;
 
         private BoardState _boardState;
         private BeamTracer _beamTracer;
@@ -49,9 +50,41 @@ namespace PrismPulse.Gameplay
                 _winScreen.Initialize();
                 _winScreen.OnNextLevel = NextLevel;
                 _winScreen.OnRestart = RestartLevel;
+                _winScreen.OnMainMenu = ShowMainMenu;
             }
 
+            if (_mainMenu != null)
+            {
+                _mainMenu.Initialize();
+                _mainMenu.OnPlay = StartGame;
+                if (_hud != null) _hud.Hide();
+                _mainMenu.Show();
+            }
+            else
+            {
+                // No menu — load first level directly (fallback)
+                LoadLevel(_currentLevelIndex);
+            }
+        }
+
+        public void StartGame()
+        {
+            if (_mainMenu != null) _mainMenu.Hide();
+            if (_hud != null) _hud.Show();
             LoadLevel(_currentLevelIndex);
+        }
+
+        public void ShowMainMenu()
+        {
+            // Hide game elements
+            _boardView.ClearBoard();
+            _beamRenderer.ClearBeams();
+            if (_hud != null) { _hud.Stop(); _hud.Hide(); }
+            if (_winScreen != null) _winScreen.Hide();
+
+            _currentLevelIndex = 0;
+
+            if (_mainMenu != null) _mainMenu.Show();
         }
 
         public void LoadLevel(int index)

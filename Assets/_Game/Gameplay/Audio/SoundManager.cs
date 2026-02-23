@@ -38,6 +38,12 @@ namespace PrismPulse.Gameplay.Audio
             GenerateClips();
         }
 
+        public bool IsMuted
+        {
+            get => _source != null && _source.mute;
+            set { if (_source != null) _source.mute = value; }
+        }
+
         public void PlayRotate() => PlayClip(_rotateClip, 0.5f);
         public void PlayBeamConnect() => PlayClip(_beamConnectClip, 0.6f);
         public void PlaySolve() => PlayClip(_solveClip, 0.8f);

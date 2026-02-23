@@ -25,15 +25,17 @@ namespace PrismPulse.Gameplay.UI
 
         public System.Action OnNextLevel;
         public System.Action OnRestart;
+        public System.Action OnMainMenu;
 
         public void Initialize()
         {
             BuildUI();
-            _panel.SetActive(false);
+            _canvas.gameObject.SetActive(false);
         }
 
         public void Show(int stars, int moves, float time, bool hasNextLevel)
         {
+            _canvas.gameObject.SetActive(true);
             _panel.SetActive(true);
 
             _starsText.text = new string('*', stars) + new string('-', 3 - stars);
@@ -56,7 +58,7 @@ namespace PrismPulse.Gameplay.UI
 
         public void Hide()
         {
-            _panel.SetActive(false);
+            _canvas.gameObject.SetActive(false);
         }
 
         private string FormatTime(float seconds)
@@ -118,8 +120,8 @@ namespace PrismPulse.Gameplay.UI
             _panel = new GameObject("Panel");
             _panel.transform.SetParent(safeAreaGO.transform, false);
             var panelRect = _panel.AddComponent<RectTransform>();
-            panelRect.anchorMin = new Vector2(0.1f, 0.3f);
-            panelRect.anchorMax = new Vector2(0.9f, 0.7f);
+            panelRect.anchorMin = new Vector2(0.1f, 0.2f);
+            panelRect.anchorMax = new Vector2(0.9f, 0.75f);
             panelRect.sizeDelta = Vector2.zero;
             var panelImage = _panel.AddComponent<Image>();
             panelImage.color = new Color(0.08f, 0.08f, 0.15f, 0.95f);
@@ -128,21 +130,21 @@ namespace PrismPulse.Gameplay.UI
 
             // Title
             _titleText = CreateText(_panel.transform, "Title", "SOLVED!",
-                new Vector2(0.5f, 0.85f), 56, TextAlignmentOptions.Center);
+                new Vector2(0.5f, 0.88f), 56, TextAlignmentOptions.Center);
             _titleText.color = new Color(0.5f, 1f, 0.7f);
 
             // Stars
             _starsText = CreateText(_panel.transform, "Stars", "***",
-                new Vector2(0.5f, 0.65f), 72, TextAlignmentOptions.Center);
+                new Vector2(0.5f, 0.72f), 72, TextAlignmentOptions.Center);
 
             // Stats
             _statsText = CreateText(_panel.transform, "Stats", "",
-                new Vector2(0.5f, 0.45f), 28, TextAlignmentOptions.Center);
+                new Vector2(0.5f, 0.57f), 28, TextAlignmentOptions.Center);
             _statsText.color = new Color(0.7f, 0.7f, 0.8f);
 
             // Next button
             _nextButton = CreateButton(_panel.transform, "Next Level",
-                new Vector2(0.5f, 0.2f), new Color(0.2f, 0.7f, 0.4f));
+                new Vector2(0.5f, 0.38f), new Color(0.2f, 0.7f, 0.4f));
             _nextButton.onClick.AddListener(() =>
             {
                 if (SoundManager.Instance != null) SoundManager.Instance.PlayButtonClick();
@@ -152,12 +154,22 @@ namespace PrismPulse.Gameplay.UI
 
             // Restart button
             _restartButton = CreateButton(_panel.transform, "Restart",
-                new Vector2(0.5f, 0.08f), new Color(0.3f, 0.3f, 0.4f));
+                new Vector2(0.5f, 0.22f), new Color(0.3f, 0.3f, 0.4f));
             _restartButton.onClick.AddListener(() =>
             {
                 if (SoundManager.Instance != null) SoundManager.Instance.PlayButtonClick();
                 HapticFeedback.LightTap();
                 OnRestart?.Invoke();
+            });
+
+            // Menu button
+            var menuButton = CreateButton(_panel.transform, "Menu",
+                new Vector2(0.5f, 0.08f), new Color(0.25f, 0.25f, 0.35f));
+            menuButton.onClick.AddListener(() =>
+            {
+                if (SoundManager.Instance != null) SoundManager.Instance.PlayButtonClick();
+                HapticFeedback.LightTap();
+                OnMainMenu?.Invoke();
             });
         }
 
