@@ -56,6 +56,11 @@ namespace PrismPulse.Gameplay.UI
             _running = false;
         }
 
+        public void Resume()
+        {
+            _running = true;
+        }
+
         public void Show() { if (_canvas != null) _canvas.gameObject.SetActive(true); }
         public void Hide() { if (_canvas != null) _canvas.gameObject.SetActive(false); }
 

@@ -24,6 +24,7 @@ namespace PrismPulse.Gameplay
         [SerializeField] private WinScreen _winScreen;
         [SerializeField] private MainMenu _mainMenu;
         [SerializeField] private LevelSelectScreen _levelSelect;
+        [SerializeField] private TutorialManager _tutorial;
 
         private BoardState _boardState;
         private BeamTracer _beamTracer;
@@ -70,6 +71,9 @@ namespace PrismPulse.Gameplay
                 _levelSelect.OnLevelSelected = StartLevel;
                 _levelSelect.OnBack = ShowMainMenu;
             }
+
+            if (_tutorial != null)
+                _tutorial.Initialize();
 
             if (_mainMenu != null)
             {
@@ -143,6 +147,16 @@ namespace PrismPulse.Gameplay
             TraceAndRender();
 
             if (SoundManager.Instance != null) SoundManager.Instance.PlayLevelStart();
+
+            if (_tutorial != null && _tutorial.TryShowTutorial(_currentLevelIndex))
+            {
+                // Pause timer during tutorial, resume when dismissed
+                if (_hud != null) _hud.Stop();
+                _tutorial.OnTutorialComplete = () =>
+                {
+                    if (_hud != null) _hud.Resume();
+                };
+            }
         }
 
         public void NextLevel()

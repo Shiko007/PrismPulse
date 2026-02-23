@@ -51,7 +51,8 @@ namespace PrismPulse.Gameplay.BoardView
 
             // Color-blind label for Source and Target tiles
             if (LightColorMap.ColorBlindMode &&
-                (state.Type == TileType.Source || state.Type == TileType.Target))
+                (state.Type == TileType.Source || state.Type == TileType.Target
+                 || state.Type == TileType.DarkAbsorber))
             {
                 CreateColorLabel(state);
             }
@@ -64,7 +65,9 @@ namespace PrismPulse.Gameplay.BoardView
 
         private void CreateColorLabel(TileState state)
         {
-            var labelColor = state.Type == TileType.Source ? state.SourceColor : state.RequiredColor;
+            var labelColor = state.Type == TileType.Source ? state.SourceColor
+                : state.Type == TileType.DarkAbsorber ? state.ActivationColor
+                : state.RequiredColor;
             string text = LightColorMap.ToLabel(labelColor);
             if (string.IsNullOrEmpty(text)) return;
 

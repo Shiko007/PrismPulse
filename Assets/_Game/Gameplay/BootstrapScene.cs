@@ -51,6 +51,10 @@ namespace PrismPulse.Gameplay
             var levelSelectGO = new GameObject("LevelSelect");
             var levelSelect = levelSelectGO.AddComponent<UI.LevelSelectScreen>();
 
+            // Tutorial
+            var tutorialGO = new GameObject("TutorialManager");
+            var tutorial = tutorialGO.AddComponent<UI.TutorialManager>();
+
             // Game Manager
             var managerGO = new GameObject("GameManager");
             var gameManager = managerGO.AddComponent<GameManager>();
@@ -60,6 +64,7 @@ namespace PrismPulse.Gameplay
             SetSerializedField(gameManager, "_winScreen", winScreen);
             SetSerializedField(gameManager, "_mainMenu", mainMenu);
             SetSerializedField(gameManager, "_levelSelect", levelSelect);
+            SetSerializedField(gameManager, "_tutorial", tutorial);
 
             // Sound Manager
             var soundGO = new GameObject("SoundManager");
