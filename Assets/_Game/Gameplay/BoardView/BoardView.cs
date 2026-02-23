@@ -27,12 +27,20 @@ namespace PrismPulse.Gameplay.BoardView
         [Header("Visual")]
         [SerializeField] private Material _tileMaterial;
 
+        [Header("Spawn Animation")]
+        [SerializeField] private float _spawnDuration = 0.3f;
+        [SerializeField] private float _spawnStagger = 0.03f;
+
         private readonly Dictionary<GridPosition, TileView> _tileViews = new Dictionary<GridPosition, TileView>();
         private readonly HashSet<GridPosition> _previouslySatisfiedTargets = new HashSet<GridPosition>();
         private BoardState _boardState;
         private Camera _cam;
+        private bool _isSpawning;
 
         public System.Action<GridPosition> OnTileRotated;
+        public System.Action OnSpawnComplete;
+
+        public bool IsSpawning => _isSpawning;
 
         public void Initialize(BoardState boardState)
         {
@@ -45,7 +53,7 @@ namespace PrismPulse.Gameplay.BoardView
 
         private void Update()
         {
-            if (_boardState == null || _cam == null) return;
+            if (_boardState == null || _cam == null || _isSpawning) return;
 
             // Detect click/tap using new Input System
             var mouse = Mouse.current;
@@ -82,11 +90,15 @@ namespace PrismPulse.Gameplay.BoardView
 
         private void SpawnTiles()
         {
+            _isSpawning = true;
             float spacing = _tileSize + _tileGap;
 
             // Center the board in world space
             float offsetX = (_boardState.Width - 1) * spacing * 0.5f;
             float offsetY = (_boardState.Height - 1) * spacing * 0.5f;
+
+            int totalTiles = _boardState.Height * _boardState.Width;
+            int lastIndex = totalTiles - 1;
 
             for (int row = 0; row < _boardState.Height; row++)
             {
@@ -102,11 +114,29 @@ namespace PrismPulse.Gameplay.BoardView
                     var tileGO = Instantiate(_tilePrefab, transform);
                     tileGO.gameObject.SetActive(true);
                     tileGO.transform.localPosition = new Vector3(worldX, worldY, 0f);
-                    tileGO.transform.localScale = Vector3.one * _tileSize;
+                    tileGO.transform.localScale = Vector3.zero;
                     tileGO.name = $"Tile_{col}_{row}_{tile.Type}";
 
                     var tileView = tileGO.GetComponent<TileView>();
                     tileView.Initialize(gridPos, tile);
+
+                    // Staggered spawn animation: cascade top-left to bottom-right
+                    int tileIndex = row * _boardState.Width + col;
+                    float delay = tileIndex * _spawnStagger;
+                    float targetScale = _tileSize;
+                    var tween = tileGO.transform.DOScale(targetScale, _spawnDuration)
+                        .SetEase(Ease.OutBack)
+                        .SetDelay(delay);
+
+                    // Fire callback when the last tile finishes animating
+                    if (tileIndex == lastIndex)
+                    {
+                        tween.OnComplete(() =>
+                        {
+                            _isSpawning = false;
+                            OnSpawnComplete?.Invoke();
+                        });
+                    }
 
                     _tileViews[gridPos] = tileView;
                 }

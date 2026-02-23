@@ -27,6 +27,7 @@ namespace PrismPulse.Gameplay.BoardView
         private Material _tileMat;
         private Material _indicatorMat;
         private TextMesh _colorLabel;
+        private Tweener _glowTween;
 
         public GridPosition GridPosition => _gridPosition;
 
@@ -61,6 +62,19 @@ namespace PrismPulse.Gameplay.BoardView
             transform.localRotation = Quaternion.Euler(0f, 0f, -state.Rotation * 90f);
 
             UpdateVisual(state);
+
+            // Source tiles: start idle glow pulse
+            if (state.Type == TileType.Source && _tileMat != null)
+            {
+                Color baseColor = _tileMat.GetColor(BaseColorId);
+                Color brightColor = baseColor * 1.6f;
+                brightColor.a = 1f;
+                _glowTween = DOTween.To(
+                    () => _tileMat.GetColor(BaseColorId),
+                    c => _tileMat.SetColor(BaseColorId, c),
+                    brightColor, 1.5f
+                ).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine);
+            }
         }
 
         private void CreateColorLabel(TileState state)
@@ -239,6 +253,11 @@ namespace PrismPulse.Gameplay.BoardView
                     originalColor, 0.5f
                 ).SetEase(Ease.OutQuad);
             }
+        }
+
+        private void OnDestroy()
+        {
+            _glowTween?.Kill();
         }
 
         private void LateUpdate()

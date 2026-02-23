@@ -1,5 +1,8 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using DG.Tweening;
 using PrismPulse.Core.Board;
 using PrismPulse.Core.Colors;
 using PrismPulse.Core.Puzzle;
@@ -26,11 +29,17 @@ namespace PrismPulse.Gameplay
         [SerializeField] private LevelSelectScreen _levelSelect;
         [SerializeField] private TutorialManager _tutorial;
 
+        [Header("Transition")]
+        [SerializeField] private float _fadeDuration = 0.2f;
+        [SerializeField] private float _shakeStrength = 0.15f;
+
         private BoardState _boardState;
         private BeamTracer _beamTracer;
         private BeamResult _beamResult;
         private int _moveCount;
         private bool _puzzleSolved;
+        private Image _fadeOverlay;
+        private Canvas _fadeCanvas;
 
         private LevelDefinition[] _levels;
         private int _currentLevelIndex;
@@ -43,6 +52,7 @@ namespace PrismPulse.Gameplay
         {
             _beamTracer = new BeamTracer();
             _beamResult = new BeamResult();
+            CreateFadeOverlay();
         }
 
         private void Start()
@@ -102,9 +112,12 @@ namespace PrismPulse.Gameplay
 
         public void StartLevel(int index)
         {
-            if (_levelSelect != null) _levelSelect.Hide();
-            if (_hud != null) _hud.Show();
-            LoadLevel(index);
+            StartCoroutine(FadeTransition(() =>
+            {
+                if (_levelSelect != null) _levelSelect.Hide();
+                if (_hud != null) _hud.Show();
+                LoadLevel(index);
+            }));
         }
 
         public void ShowMainMenu()
@@ -134,8 +147,13 @@ namespace PrismPulse.Gameplay
             _solution = PuzzleSolver.Solve(_boardState);
             if (_hud != null) _hud.SetUndoInteractable(false);
 
+            _beamRenderer.ClearBeams();
             _boardView.Initialize(_boardState);
             _boardView.OnTileRotated = HandleTileRotated;
+            _boardView.OnSpawnComplete = () =>
+            {
+                TraceAndRender(animateAllBeams: true);
+            };
             FitCameraToBoard(level.Width, level.Height);
 
             if (_hud != null)
@@ -143,8 +161,6 @@ namespace PrismPulse.Gameplay
 
             if (_winScreen != null)
                 _winScreen.Hide();
-
-            TraceAndRender();
 
             if (SoundManager.Instance != null) SoundManager.Instance.PlayLevelStart();
 
@@ -162,12 +178,24 @@ namespace PrismPulse.Gameplay
         public void NextLevel()
         {
             if (_currentLevelIndex + 1 < _levels.Length)
-                LoadLevel(_currentLevelIndex + 1);
+            {
+                int next = _currentLevelIndex + 1;
+                StartCoroutine(FadeTransition(() =>
+                {
+                    if (_winScreen != null) _winScreen.Hide();
+                    LoadLevel(next);
+                }));
+            }
         }
 
         public void RestartLevel()
         {
-            LoadLevel(_currentLevelIndex);
+            int current = _currentLevelIndex;
+            StartCoroutine(FadeTransition(() =>
+            {
+                if (_winScreen != null) _winScreen.Hide();
+                LoadLevel(current);
+            }));
         }
 
         private void HandleTileRotated(GridPosition pos)
@@ -202,6 +230,11 @@ namespace PrismPulse.Gameplay
 
                 var levelColors = GetLevelColors();
                 ParticleEffectFactory.CreatePuzzleSolvedEffect(Vector3.zero, levelColors);
+
+                // Camera shake on solve
+                var cam = Camera.main;
+                if (cam != null)
+                    cam.transform.DOShakePosition(0.3f, _shakeStrength, 10, 90f);
 
                 if (SoundManager.Instance != null) SoundManager.Instance.PlaySolve();
                 HapticFeedback.Success();
@@ -283,11 +316,60 @@ namespace PrismPulse.Gameplay
             return colors.ToArray();
         }
 
-        private void TraceAndRender()
+        private void TraceAndRender(bool animateAllBeams = false)
         {
             _beamTracer.Trace(_boardState, _beamResult);
-            _beamRenderer.RenderBeams(_beamResult);
+            _beamRenderer.RenderBeams(_beamResult, animateAllBeams);
             _boardView.UpdateBeamLitState(_beamResult);
+        }
+
+        private void CreateFadeOverlay()
+        {
+            var canvasGO = new GameObject("FadeCanvas");
+            canvasGO.transform.SetParent(transform);
+            _fadeCanvas = canvasGO.AddComponent<Canvas>();
+            _fadeCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _fadeCanvas.sortingOrder = 100;
+
+            var overlayGO = new GameObject("FadeOverlay");
+            overlayGO.transform.SetParent(canvasGO.transform, false);
+            var rect = overlayGO.AddComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.sizeDelta = Vector2.zero;
+
+            _fadeOverlay = overlayGO.AddComponent<Image>();
+            _fadeOverlay.color = new Color(0f, 0f, 0f, 0f);
+            _fadeOverlay.raycastTarget = false;
+        }
+
+        private IEnumerator FadeTransition(System.Action onMidpoint)
+        {
+            // Fade out (to black)
+            _fadeOverlay.raycastTarget = true;
+            float elapsed = 0f;
+            while (elapsed < _fadeDuration)
+            {
+                elapsed += Time.deltaTime;
+                float alpha = Mathf.Clamp01(elapsed / _fadeDuration);
+                _fadeOverlay.color = new Color(0f, 0f, 0f, alpha);
+                yield return null;
+            }
+            _fadeOverlay.color = new Color(0f, 0f, 0f, 1f);
+
+            onMidpoint?.Invoke();
+
+            // Fade in (from black)
+            elapsed = 0f;
+            while (elapsed < _fadeDuration)
+            {
+                elapsed += Time.deltaTime;
+                float alpha = 1f - Mathf.Clamp01(elapsed / _fadeDuration);
+                _fadeOverlay.color = new Color(0f, 0f, 0f, alpha);
+                yield return null;
+            }
+            _fadeOverlay.color = new Color(0f, 0f, 0f, 0f);
+            _fadeOverlay.raycastTarget = false;
         }
     }
 }

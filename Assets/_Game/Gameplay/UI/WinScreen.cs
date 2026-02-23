@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -23,6 +24,8 @@ namespace PrismPulse.Gameplay.UI
 
         private CanvasGroup _canvasGroup;
 
+        private readonly List<TextMeshProUGUI> _starObjects = new List<TextMeshProUGUI>();
+
         public System.Action OnNextLevel;
         public System.Action OnRestart;
         public System.Action OnMainMenu;
@@ -38,10 +41,8 @@ namespace PrismPulse.Gameplay.UI
             _canvas.gameObject.SetActive(true);
             _panel.SetActive(true);
 
-            _starsText.text = new string('*', stars) + new string('-', 3 - stars);
-            _starsText.color = stars == 3
-                ? new Color(1f, 0.85f, 0.2f)   // gold
-                : new Color(0.8f, 0.8f, 0.8f);  // silver
+            // Hide the original stars text (we use individual star objects instead)
+            _starsText.text = "";
 
             _titleText.text = stars == 3 ? "PERFECT!" : "SOLVED!";
             _statsText.text = $"{moves} moves  |  {FormatTime(time)}";
@@ -52,13 +53,64 @@ namespace PrismPulse.Gameplay.UI
             _canvasGroup.alpha = 0f;
             _panel.transform.localScale = Vector3.one * 0.8f;
             _panel.transform.DOScale(1f, 0.3f).SetEase(Ease.OutBack);
-            // Fade in via coroutine since DOTween UI module may not be enabled
             StartCoroutine(FadeIn(0.3f));
+
+            // Animate stars one by one
+            AnimateStars(stars);
         }
 
         public void Hide()
         {
+            ClearStarObjects();
             _canvas.gameObject.SetActive(false);
+        }
+
+        private void AnimateStars(int earnedStars)
+        {
+            ClearStarObjects();
+
+            var starsParent = _starsText.transform.parent;
+            var starsAnchor = _starsText.rectTransform.anchorMin;
+
+            for (int i = 0; i < 3; i++)
+            {
+                bool isEarned = i < earnedStars;
+                Color starColor = isEarned
+                    ? new Color(1f, 0.85f, 0.2f) // gold
+                    : new Color(0.3f, 0.3f, 0.35f); // dim
+
+                var starTMP = CreateText(starsParent, $"Star_{i}", "*",
+                    new Vector2(starsAnchor.x + (i - 1) * 0.12f, starsAnchor.y), 72,
+                    TextAlignmentOptions.Center);
+                starTMP.color = starColor;
+                starTMP.transform.localScale = Vector3.zero;
+
+                float delay = 0.3f + i * 0.2f;
+                float punchScale = isEarned ? 0.4f : 0.2f;
+
+                starTMP.transform.DOScale(1f, 0.25f)
+                    .SetEase(Ease.OutBack)
+                    .SetDelay(delay)
+                    .OnComplete(() =>
+                    {
+                        starTMP.transform.DOPunchScale(Vector3.one * punchScale, 0.2f, 4, 0.3f);
+                    });
+
+                _starObjects.Add(starTMP);
+            }
+        }
+
+        private void ClearStarObjects()
+        {
+            foreach (var star in _starObjects)
+            {
+                if (star != null)
+                {
+                    star.transform.DOKill();
+                    Destroy(star.gameObject);
+                }
+            }
+            _starObjects.Clear();
         }
 
         private string FormatTime(float seconds)

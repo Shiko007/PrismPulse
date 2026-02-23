@@ -144,12 +144,16 @@ namespace PrismPulse.Gameplay
 
         private Material CreateBeamMaterial()
         {
+            // Must use a shader that respects vertex colors from LineRenderer
+            // so beam segments show their source color instead of flat white.
             var shader = FindShader(
-                "Universal Render Pipeline/Unlit",
-                "Unlit/Color",
+                "Universal Render Pipeline/Particles/Unlit",
+                "Particles/Standard Unlit",
                 "Sprites/Default");
 
             var mat = new Material(shader);
+            // Particles/Unlit multiplies _BaseColor with vertex color.
+            // HDR multiplier (>1) pushes values above 1.0 to trigger URP bloom.
             mat.SetColor("_BaseColor", Color.white * 3f);
             return mat;
         }
