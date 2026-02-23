@@ -15,6 +15,7 @@ namespace PrismPulse.Gameplay
     {
         private void Awake()
         {
+            Application.targetFrameRate = 120; // unlock from 30fps default on mobile
             SetupCamera();
             var tileMaterial = CreateTileMaterial();
             var beamMaterial = CreateBeamMaterial();
